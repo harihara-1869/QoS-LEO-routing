@@ -1,0 +1,14 @@
+Test date: 2026-10-23
+Host: Linux x86_64, Python 3.12.3, GCC 13, no mpic++ detected
+Checkout: https://github.com/snkas/hypatia
+Revision: 0ac531c313eba2335f6344b46347140c3a0d4230
+basic-sim submodule: 3b32597c183e1039be7f0bede17d36d354696776
+Command (from ns3-sat-sim): bash build.sh --optimized
+Result: exit 1; bundled ns-3.31 unpacked, Waf configuration failed
+Final traceback:
+  File "simulator/.waf3-2.0.18-ff4ae9f5cc05353d3dc3aeff8854ae69/waflib/Context.py", line 5
+    import os,re,imp,sys
+ModuleNotFoundError: No module named 'imp'
+
+No source patches, system packages, sudo installations or full legacy build were attempted.
+This does not establish that Hypatia is unusable in a compatible legacy environment.

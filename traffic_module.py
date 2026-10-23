@@ -8,7 +8,8 @@ import heapq
 
 class FlowType(Enum):
     BULK = auto()
-    STREAMING = auto()
+    REALTIME = auto()
+    STREAMING = REALTIME  # backwards-compatible name
     CONTROL = auto()
 
 class FlowState(Enum):
@@ -28,8 +29,8 @@ class Flow:
     data_rate_bps: float
     packet_size_bytes: int = 1500
 
-    flow_type = FlowType.BULK
-    flow_state = FlowState.WAITING
+    flow_type: FlowType = FlowType.BULK
+    flow_state: FlowState = FlowState.WAITING
 
     bytes_generated: int = 0
     bytes_delivered: int = 0
@@ -57,7 +58,7 @@ class Packet:
     size_bytes: int
     creation_time: float
 
-    packet_type: PacketType.DATA
+    packet_type: PacketType = PacketType.DATA
     
     delivered: bool = False
     delivery_time: Optional[float] = None
@@ -73,40 +74,35 @@ class TrafficModule:
         self._packet_counter: int = 0
 
     def on_flow_start(self, time: float, flow_id: int):
-        flow = self.flows(flow_id)
-        if flow is None:
-            return
-        
-        flow.state = FlowState.ACTIVE
-        self.active_flows.discard(flow_id)
+        flow = self.flows.get(flow_id)
+        if flow is not None and flow.is_active(time):
+            flow.flow_state = FlowState.ACTIVE
+            self.active_flows.add(flow_id)
 
     def on_packet_generation(self, time: float, interval: float):
-        for flow_id in list(self.active_flows):
-            flow = self.flows.get(flow_id)
-            if flow is None or flow.is_finished(time):
-                continue
-
-            bits_to_send = flow.data_rate_bps * interval
-            bytes_to_send = int (bits_to_send / 8)
-
-            num_packets = max(1, bytes_to_send // flow.packet_size_bytes)
-
-            for _ in range(num_packets):
-                packet = Packet(
-                    packet_id = self._packet_counter,
-                    flow_id = flow.flow_id,
-                    src = flow.src,
-                    dst = flow.dst,
-                    size_bytes = flow.packet_size_bytes,
-                    creation_time = time,
-                    packet_type = PacketType.DATA
-                )
-
-            self._packet_counter += 1
-            flow.packets_generated += 1
-            flow.bytes_generated += packet.size_bytes
-
-            self.network.inject_packet(packet)
+        """Generate bytes earned in [time-interval, time); retain fractional packets."""
+        if interval <= 0 or not math.isfinite(interval):
+            raise ValueError("Generation interval must be positive and finite")
+        for flow_id, flow in sorted(self.flows.items()):
+            elapsed = max(0.0, min(time, flow.end_time) - max(time - interval, flow.start_time))
+            if flow.packet_size_bytes <= 0 or flow.data_rate_bps < 0:
+                raise ValueError("Invalid packet size or data rate")
+            earned = getattr(flow, "_pending_bytes", 0.0) + flow.data_rate_bps * elapsed / 8
+            count = int((earned + 1e-9) // flow.packet_size_bytes)
+            flow._pending_bytes = earned - count * flow.packet_size_bytes
+            for _ in range(count):
+                packet = Packet(self._packet_counter, flow_id, flow.src, flow.dst,
+                                flow.packet_size_bytes, time)
+                self._packet_counter += 1
+                flow.packets_generated += 1
+                flow.bytes_generated += packet.size_bytes
+                self.network.inject_packet(packet)
+            flow.flow_state = (FlowState.COMPLETED if flow.is_finished(time) else
+                               FlowState.ACTIVE if flow.is_active(time) else FlowState.WAITING)
+            if flow.flow_state == FlowState.ACTIVE:
+                self.active_flows.add(flow_id)
+            else:
+                self.active_flows.discard(flow_id)
 
     def on_packet_delivered(self, packet: Packet, time: float):
         packet.delivered = True

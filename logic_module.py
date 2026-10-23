@@ -1,13 +1,9 @@
-import time
 import math
-import csv
 import numpy as np
-from datetime import timedelta
 from collections import defaultdict
-from skyfield.api import load, EarthSatellite, wgs84
+from skyfield.api import EarthSatellite, wgs84
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Dict, List, Tuple, Set
 import igraph as ig
 
 #Configuration Section
@@ -24,6 +20,7 @@ class LogicalConfig:
     isl_max_km: float = 5000
     iol_cone_deg: float = 60
     min_elev_deg: float = 5
+    enable_iol: bool = False  # needs an explicit optical terminal model
 
 LOGICAL_CONFIG = LogicalConfig()
 
@@ -39,18 +36,15 @@ GROUND_STATIONS = [
 # Earth Occlusion Check
 
 def link_clear_of_earth(p1, p2):
+    p1, p2 = np.asarray(p1), np.asarray(p2)
+    if not (np.all(np.isfinite(p1)) and np.all(np.isfinite(p2))):
+        return False
     d = p2 - p1
-    f = p1
-    a = np.dot(d, d)
-    b = 2 * np.dot(f, d)
-    c = np.dot(f, f) - EARTH_RADIUS**2
-    disc = b*b - 4*a*c
-    if disc < 0:
-        return True
-    s = math.sqrt(disc)
-    t1 = (-b - s) / (2*a)
-    t2 = (-b + s) / (2*a)
-    return not ((0 <= t1 <= 1) or (0 <= t2 <= 1))
+    squared = np.dot(d, d)
+    if squared <= 1e-18:
+        return False
+    closest = p1 + np.clip(-np.dot(p1, d) / squared, 0, 1) * d
+    return bool(np.linalg.norm(closest) > EARTH_RADIUS)
 
 # Data Structure
 
@@ -72,9 +66,22 @@ class LinkType(Enum):
 
 class LogicalTopology:
 
-    def __init__(self, sats):
+    def __init__(self, sats, config=None, ground_stations=None):
         self.nodes = self._group_orbits(sats)
-        self.cfg = LOGICAL_CONFIG
+        names = [node.sat.name for node in self.nodes]
+        if len(names) != len(set(names)):
+            raise ValueError("Satellite names must be unique")
+        self.cfg = config or LogicalConfig()
+        if not (math.isfinite(self.cfg.isl_max_km) and self.cfg.isl_max_km > 0
+                and 0 <= self.cfg.min_elev_deg <= 90 and 0 <= self.cfg.iol_cone_deg <= 180):
+            raise ValueError("Invalid link configuration")
+        self.ground_stations = list(GROUND_STATIONS if ground_stations is None else ground_stations)
+        gs_names = [gs[0] for gs in self.ground_stations]
+        if len(gs_names) != len(set(gs_names)) or set(gs_names) & set(names):
+            raise ValueError("Ground station names must be unique and distinct from satellites")
+        for _, lat, lon, height in self.ground_stations:
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180 and math.isfinite(height)):
+                raise ValueError("Invalid ground station coordinates")
         self.links = set()
         self.prev_links = set()
         self.last_update_time = None
@@ -82,15 +89,15 @@ class LogicalTopology:
     def _group_orbits(self, sats):
         groups = defaultdict(list)
         for sat in sats:
-            inc = round(sat.model.inclo, 1)
-            raan = round(sat.model.nodeo, 1)
+            inc = round(sat.model.inclo, 6)
+            raan = round(sat.model.nodeo, 6)
             groups[(inc, raan)].append(sat)
         nodes = []
         orbit_id = 0
 
         for key in sorted(groups.keys()):
             group = groups[key]
-            group.sort(key = lambda s: s.model.mo)
+            group.sort(key = lambda s: (s.model.mo, s.name))
             for i, sat in enumerate(group):
                 nodes.append(SatelliteNode(sat, orbit_id, i))
             
@@ -100,6 +107,8 @@ class LogicalTopology:
     
     def compute(self, t):
         pos = {n: n.sat.at(t).position.km for n in self.nodes}
+        if any(not np.all(np.isfinite(point)) for point in pos.values()):
+            raise ValueError("Non-finite satellite position; check epoch and OMM inputs")
         orbits = defaultdict(list)
         for n in self.nodes:
             orbits[n.orbit_id].append(n)
@@ -111,8 +120,8 @@ class LogicalTopology:
             N = len(orbit_nodes)
             for i, n in enumerate(orbit_nodes):
                 for nb in (orbit_nodes[(i - 1) % N], orbit_nodes[(i + 1) % N]):
-                    if link_clear_of_earth(pos[n], pos[nb]):
-                        a, b = sorted((n, nb), key = id)
+                    if n is not nb and np.linalg.norm(pos[n] - pos[nb]) <= self.cfg.isl_max_km and link_clear_of_earth(pos[n], pos[nb]):
+                        a, b = sorted((n, nb), key = lambda node: node.sat.name)
                         candidate_links.add(
                             (LinkType.ISL_INTRA, a, b)
                         )
@@ -132,18 +141,18 @@ class LogicalTopology:
                     dist = np.linalg.norm(pos[n] - pos[nearest])
 
                     if dist <= self.cfg.isl_max_km and link_clear_of_earth(pos[n], pos[nearest]):
-                        a, b = sorted((n, nearest), key = id)
+                        a, b = sorted((n, nearest), key = lambda node: node.sat.name)
                         candidate_links.add(
                             (LinkType.ISL_INTER, a, b)
                         )
 
         # IOL cone models
-        for a in self.nodes:
+        for a in (self.nodes if self.cfg.enable_iol else []):
             for b in self.nodes:
                 if a is b:
                     continue
 
-                v = pos[a] - pos[b]
+                v = pos[b] - pos[a]
                 nadir = -pos[a]
 
                 cos_angle = np.dot(v, nadir) / (
@@ -154,14 +163,14 @@ class LogicalTopology:
                 angle = math.degrees(math.acos(cos_angle))
 
                 if angle <= self.cfg.iol_cone_deg and link_clear_of_earth(pos[a], pos[b]):
-                    a_norm, b_norm = sorted((a, b), key = id)
+                    a_norm, b_norm = sorted((a, b), key = lambda node: node.sat.name)
                     candidate_links.add(
                         (LinkType.IOL, a_norm, b_norm)
                     )
 
         # UDL satellite ground links
         for n in self.nodes:
-            for name, lat, lon, h in GROUND_STATIONS:
+            for name, lat, lon, h in self.ground_stations:
                 gs = wgs84.latlon(lat, lon, elevation_m = h)
 
                 alt, _, _ = (n.sat - gs).at(t).altaz()
@@ -170,7 +179,9 @@ class LogicalTopology:
 
                 gs_pos = gs.at(t).position.km
 
-                if link_clear_of_earth(pos[n], gs_pos):
+                # Skyfield elevation uses WGS84; a mean-radius sphere incorrectly
+                # occludes ground stations near the poles. Elevation gates UDLs.
+                if np.all(np.isfinite(gs_pos)):
                     candidate_links.add(
                         (LinkType.UDL, n, name)
                     )
@@ -185,11 +196,11 @@ class LogicalTopology:
     
     def construct_unified_graph(self, pos, gs_positions):
         num_sats = len(self.nodes)
-        num_gs = len(GROUND_STATIONS)
+        num_gs = len(self.ground_stations)
 
         g = ig.Graph(n= num_sats + num_gs, directed=False)
 
-        gs_names = [gs[0] for gs in GROUND_STATIONS]
+        gs_names = [gs[0] for gs in self.ground_stations]
         g.vs["name"] = [n.sat.name for n in self.nodes] + gs_names
         g.vs["type"] = ["satellite"] * num_sats + ["ground_station"] * num_gs
 
@@ -199,7 +210,7 @@ class LogicalTopology:
         edges = []
         weights = []
 
-        for link_type, a, b, in self.links:
+        for link_type, a, b in sorted(self.links, key=lambda link: (link[0].value, link[1].sat.name, link[2] if isinstance(link[2], str) else link[2].sat.name)):
             if link_type in (LinkType.ISL_INTRA, LinkType.ISL_INTER, LinkType.IOL):
                 u = sat_to_id[a]
                 v = sat_to_id[b]
@@ -213,7 +224,7 @@ class LogicalTopology:
             else:
                 continue
 
-            if np.isnan(dist):
+            if not np.isfinite(dist):
                 continue
 
             edges.append((u, v))
@@ -252,7 +263,7 @@ class LogicalTopology:
     def get_gs_position(self, name, t):
     
     # 1. Find the GS metadata from your GROUND_STATIONS list
-        gs_metadata = next((gs for gs in GROUND_STATIONS if gs[0] == name), None)
+        gs_metadata = next((gs for gs in self.ground_stations if gs[0] == name), None)
         if not gs_metadata:
             raise ValueError(f"Ground Station {name} not found in configuration.")
 

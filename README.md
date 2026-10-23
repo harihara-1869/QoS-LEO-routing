@@ -1,58 +1,47 @@
-# LEO Constellation Simulation and Benchmark
+# LEO routing simulator
 
-This repository contains tools to simulate, visualize, and benchmark LEO satellite constellations.
+Phase 1 provides a repeatable orbital topology and distance-weighted Dijkstra baseline. It records **route feasibility**, not packet delivery: queues, forwarding, handovers and transport validation are Phase 2 work. There is no trained RL controller.
 
-## Features
-- Visual 3D simulation of LEO constellation (`test.py` -> `SatelliteSim`).
-- Logical topology computation (ISL, IOL, UDL) and unified graph construction.
-- Pathfinding implementations and comparative benchmark (Dijkstra, A*, Bellman-Ford).
-- Plotting and isolation analysis for network connectivity.
+## Headless baseline
 
-## Requirements
-- Python 3.9+ (recommend 3.10 or 3.11)
-- GPU/OpenGL drivers for the real-time visualizer (GLFW + PyOpenGL)
-- Create and activate a virtual environment and install dependencies:
+Tested with Python 3.12 on Linux. No display or runtime downloads are needed after dependency installation.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1    # PowerShell
-pip install -r requirements.txt
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python run_scenario.py --scenario scenarios/baseline.json --output runs/baseline
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
-## Quick Start
+Edit `scenarios/baseline.json` to set the epoch (timezone required), constellation, seed, run duration, update interval, ground stations and flows. The seed is recorded; the current workload is deterministic and does not draw random traffic. `setup.py` is an inherited utility module, not an installation script.
 
-1) Generate a test constellation and run the benchmark (non-interactive):
+The saved baseline has 200 satellites, two ground stations, a five-second run and a 24 kbps Bulk flow. It generates ten 1500-byte packets and finds a route for all ten. A final partial update interval is supported.
 
-```powershell
-python test.py
+Outputs in the selected run directory:
+
+- `constellation.csv`: generated OMM input with a fixed epoch.
+- `results.json`: scenario, time-indexed topology, link distances in km, named route samples and generation/route counts.
+- `manifest.json`: result SHA-256, Git revision/dirty flag and installed dependency versions.
+
+Repeat the command with another output directory to compare result hashes. Results are intended to repeat within the pinned software environment; cross-platform floating-point identity is not guaranteed. `datacollection.py` is a compatibility runner for this scenario and no longer overwrites the historical pickle. JSON route samples are shortest-path examples, not RL experience or delivery measurements.
+
+## Visualiser
+
+```bash
+.venv/bin/pip install -r requirements-viz.txt
+.venv/bin/python test.py
 ```
 
-By default `test.py` will generate OMM CSV files, run the comparative benchmark across several satellite counts, save `comparative_analysis_results.csv`, and produce `performance_plot.png`.
+`test.py` is the inherited interactive viewer (despite its filename), not a test suite. It shares `LogicalTopology` with headless runs, and uses the existing `customconstellation.csv`, up to 100 satellites and six default stations. It displays live wall-clock orbital time; the headless runner is authoritative for saved experiments. `opengl_sim.py` redirects to the same viewer using `starlink.csv`. A working OpenGL display is required; interactive rendering was not validated in this headless session.
 
-2) Run the visual simulator interactively (recommended if you have OpenGL/GLFW support):
+## Established packet-engine exercise
 
-Open a Python shell or create a small runner script and run:
+Keep ns-3 in a separate virtual environment; ns-3 owns all packet timing in this probe.
 
-```python
-from test import parse_csv, SatelliteSim, generate_omm_csv
-generate_omm_csv('cc.csv', n_planes=25, sats_per_plane=3)
-sats = parse_csv('cc.csv')
-sim = SatelliteSim(sats)
-sim.run()
+```bash
+python3 -m venv /tmp/leo-ns3-venv
+/tmp/leo-ns3-venv/bin/pip install -r requirements-ns3.txt
+/tmp/leo-ns3-venv/bin/python tools/probe_ns3.py --baseline runs/baseline/results.json
 ```
 
-Note: `test.py` contains an optional call to `SatelliteSim(sats_data).run()` which is commented—uncomment it if you prefer running the sim directly from `python test.py`.
-
-## Important Files
-- [test.py](test.py): Main simulation, logical topology, visualization, and benchmarking.
-- [setup.py](setup.py): Project setup utilities.
-- [requirements.txt](requirements.txt): Python dependencies.
-- [generate_omm_csv / setup helpers] in `setup.py`: helpers used by `test.py` to prepare OMM CSVs.
-
-## Troubleshooting
-- If the OpenGL window fails to create, ensure `glfw` and system GPU drivers are installed and up to date.
-- On Windows, run PowerShell as Administrator to create the virtual environment if you hit permission issues.
-- If Skyfield or satellite OMM parsing fails, ensure network time and timezone settings are correct; check that OMM CSVs are valid.
-
-## Next steps / Recommendations
-- If you want, I can: run the benchmarks locally, adjust `test.py` to expose CLI options, or add a pared-down runner script for the visualizer.
+See [the backend decision and evidence](docs/PACKET_ENGINE_DECISION.md), [Phase 1 status and assumptions](docs/PHASE1_STATUS.md), and [the research gap matrix](docs/RESEARCH_GAPS.md). The original [phased plan](LEO_Routing_Phased_Implementation_Plan.md) remains the roadmap. No A*/Bellman-Ford benchmark is implemented.
