@@ -1,0 +1,139 @@
+{
+  "ns3_version": "3.44.post0",
+  "single_link": {
+    "received": 1,
+    "queue_drops": 0,
+    "attempted": 1,
+    "send_failures": 0,
+    "first_rx_s": 0.02324,
+    "observations": [
+      {
+        "time_s": 0.012,
+        "queue_packets": 0,
+        "received": 0
+      },
+      {
+        "time_s": 0.03,
+        "queue_packets": 0,
+        "received": 1
+      },
+      {
+        "time_s": 0.06,
+        "queue_packets": 0,
+        "received": 1
+      },
+      {
+        "time_s": 1.0,
+        "queue_packets": 0,
+        "received": 1
+      }
+    ]
+  },
+  "single_expected_rx_s": 0.02324,
+  "saturated": {
+    "received": 15,
+    "queue_drops": 85,
+    "attempted": 100,
+    "send_failures": 0,
+    "first_rx_s": 0.02324,
+    "observations": [
+      {
+        "time_s": 0.012,
+        "queue_packets": 1,
+        "received": 0
+      },
+      {
+        "time_s": 0.03,
+        "queue_packets": 2,
+        "received": 1
+      },
+      {
+        "time_s": 0.06,
+        "queue_packets": 1,
+        "received": 5
+      },
+      {
+        "time_s": 1.0,
+        "queue_packets": 0,
+        "received": 15
+      }
+    ]
+  },
+  "controlled": {
+    "received": 13,
+    "queue_drops": 57,
+    "attempted": 100,
+    "send_failures": 30,
+    "first_rx_s": 0.02324,
+    "observations": [
+      {
+        "time_s": 0.012,
+        "queue_packets": 1,
+        "received": 0
+      },
+      {
+        "time_s": 0.03,
+        "queue_packets": 2,
+        "received": 1
+      },
+      {
+        "time_s": 0.06,
+        "queue_packets": 0,
+        "received": 5
+      },
+      {
+        "time_s": 1.0,
+        "queue_packets": 0,
+        "received": 13
+      }
+    ]
+  },
+  "matched_path": [
+    "GS_INDIA",
+    "SAT-01-08",
+    "SAT-01-09",
+    "SAT-01-10",
+    "SAT-01-11",
+    "SAT-01-12",
+    "GS_AUSTRALIA"
+  ],
+  "matched_delays_s": [
+    0.005737127966405227,
+    0.007233464181472595,
+    0.007232218377990476,
+    0.007230213662207673,
+    0.007227672729242955,
+    0.004390801581847512
+  ],
+  "matched_chain": {
+    "received": 1,
+    "queue_drops": 0,
+    "attempted": 1,
+    "send_failures": 0,
+    "first_rx_s": 0.098491499,
+    "observations": [
+      {
+        "time_s": 0.012,
+        "queue_packets": 0,
+        "received": 0
+      },
+      {
+        "time_s": 0.03,
+        "queue_packets": 0,
+        "received": 0
+      },
+      {
+        "time_s": 0.06,
+        "queue_packets": 0,
+        "received": 0
+      },
+      {
+        "time_s": 1.0,
+        "queue_packets": 0,
+        "received": 1
+      }
+    ]
+  },
+  "matched_expected_rx_s": 0.09849149849916644,
+  "scope": "UDP static route-chain only; not full dynamic constellation or TCP validation"
+}

@@ -9,214 +9,10 @@ from skyfield.api import load, EarthSatellite, wgs84
 from datetime import timedelta
 from collections import defaultdict
 import igraph as ig
-import matplotlib.pyplot as plt
-ig.config["plotting.backend"] = "matplotlib"
-# ==========================================================
-# CONFIGURATION
-# ==========================================================
+from logic_module import LogicalTopology, LinkType, GROUND_STATIONS, SCALE
 CSV_FILENAME = 'customconstellation.csv'
-EARTH_RADIUS_KM = 6371.0
-SCALE = 1.0 / EARTH_RADIUS_KM
 MAX_SATS = 100
-
 TIME_MULTIPLIER = 100.0
-
-ISL_MAX_KM = 2500
-IOL_CONE_DEG = 30
-MIN_ELEV_DEG = 15
-
-GROUND_STATIONS = [
-    ("GS_INDIA", 28.6139, 77.2090, 0),
-    ("GS_USA", 37.7749, -122.4194, 0),
-    ("GS_BRAZIL", -23.5505, -46.6333, 0),
-    ("GS_AUSTRALIA", -33.8688, 151.2093, 0),
-    ("NP",90.0,0.0,0),
-    ("SP",-90.0,0.0,0),
-]
-
-# ==========================================================
-# PHYSICAL HELPER: EARTH OCCLUSION CHECK
-# ==========================================================
-def link_clear_of_earth(p1, p2):
-    d = p2 - p1
-    f = p1
-    a = np.dot(d, d)
-    b = 2 * np.dot(f, d)
-    c = np.dot(f, f) - EARTH_RADIUS_KM**2
-    disc = b*b - 4*a*c
-    if disc < 0:
-        return True
-    s = math.sqrt(disc)
-    t1 = (-b - s) / (2*a)
-    t2 = (-b + s) / (2*a)
-    return not ((0 <= t1 <= 1) or (0 <= t2 <= 1))
-
-# ==========================================================
-# DATA STRUCTURE
-# ==========================================================
-class SatelliteNode:
-    def __init__(self, sat, orbit_id, index):
-        self.sat = sat
-        self.orbit_id = orbit_id
-        self.index = index
-
-# ==========================================================
-############################
-# LOGICAL MODULE START
-############################
-# ==========================================================
-class LogicalTopology:
-    #Maintains ISL, IOL, and UDL relationships
-    #Dynamically recomputed every timestep
-    def __init__(self, sats):
-        self.nodes = self._group_orbits(sats)
-
-    def _group_orbits(self, sats):
-        groups = defaultdict(list)
-        for sat in sats:
-            inc = round(sat.model.inclo, 1)
-            raan = round(sat.model.nodeo, 1)
-            groups[(inc, raan)].append(sat)
-
-        nodes = []
-        orbit_id = 0
-        for group in groups.values():
-            group.sort(key=lambda s: s.model.mo)
-            for i, sat in enumerate(group):
-                nodes.append(SatelliteNode(sat, orbit_id, i))
-            orbit_id += 1
-        return nodes
-
-    def compute(self, t):
-        pos = {n: n.sat.at(t).position.km for n in self.nodes}
-        orbits = defaultdict(list)
-        for n in self.nodes:
-            orbits[n.orbit_id].append(n)
-
-        isl_same, isl_adj, iol, udl = [], [], [], []
-
-        # ---- ISL: SAME ORBIT ----
-        for orbit_nodes in orbits.values():
-            N = len(orbit_nodes)
-            for i, n in enumerate(orbit_nodes):
-                for nb in [orbit_nodes[(i-1)%N], orbit_nodes[(i+1)%N]]:
-                    if link_clear_of_earth(pos[n], pos[nb]):
-                        isl_same.append((n, nb))
-
-        # ---- ISL: ADJACENT ORBIT ----
-        for oid in orbits:
-            for adj in [oid-1, oid+1]:
-                if adj in orbits:
-                    for n in orbits[oid]:
-                        nearest = min(
-                            orbits[adj],
-                            key=lambda m: np.linalg.norm(pos[n] - pos[m])
-                        )
-                        if (np.linalg.norm(pos[n] - pos[nearest]) <= ISL_MAX_KM and
-                            link_clear_of_earth(pos[n], pos[nearest])):
-                            isl_adj.append((n, nearest))
-
-        # ---- IOL: CONE MODEL ----
-        for a in self.nodes:
-            for b in self.nodes:
-                if a == b:
-                    continue
-                v = pos[b] - pos[a]
-                nadir = -pos[a]
-                angle = math.degrees(
-                    math.acos(
-                        np.dot(v, nadir) /
-                        (np.linalg.norm(v) * np.linalg.norm(nadir))
-                    )
-                )
-                if angle <= IOL_CONE_DEG and link_clear_of_earth(pos[a], pos[b]):
-                    iol.append((a, b))
-
-        # ---- UDL: SAT ↔ GROUND ----
-        for n in self.nodes:
-            for name, lat, lon, h in GROUND_STATIONS:
-                gs = wgs84.latlon(lat, lon, elevation_m=h)
-                alt, _, _ = (n.sat - gs).at(t).altaz()
-                if alt.degrees >= MIN_ELEV_DEG:
-                    gs_pos = gs.at(t).position.km
-                    if link_clear_of_earth(pos[n], gs_pos):
-                        udl.append((n, name))
-
-        return pos, isl_same, isl_adj, iol, udl
-   
-
-    def construct_unified_graph(self, isl_same, isl_adj, iol, udl, pos, gs_positions):
-        num_sats = len(self.nodes)
-        num_gs = len(GROUND_STATIONS)
-        
-        # 1. Initialize Graph
-        g = ig.Graph(n=num_sats + num_gs, directed=False)
-        
-        # Create name mapping
-        gs_names = [gs[0] for gs in GROUND_STATIONS]
-        g.vs["name"] = [n.sat.name for n in self.nodes] + gs_names
-        g.vs["type"] = ["satellite"] * num_sats + ["ground_station"] * num_gs
-
-        # Mapping helpers
-        sat_to_id = {node: i for i, node in enumerate(self.nodes)}
-        gs_to_id = {name: i + num_sats for i, name in enumerate(gs_names)}
-
-        edges = []
-        weights = []
-
-        # 2. Add ISL and IOL (Satellite-to-Satellite)
-        for a, b in (isl_same + isl_adj + iol):
-            u, v = sat_to_id[a], sat_to_id[b]
-            dist = np.linalg.norm(pos[a] - pos[b])
-            if np.isnan(dist):
-                continue
-            edges.append((u, v))
-            weights.append(dist)
-
-        # 3. Add UDL (Satellite-to-Ground)
-        for sat_node, gs_name in udl:
-            u = sat_to_id[sat_node]
-            v = gs_to_id[gs_name]
-            dist = np.linalg.norm(pos[sat_node] - gs_positions[gs_name])
-            if np.isnan(dist):
-                continue
-            edges.append((u, v))
-            weights.append(dist)
-
-        g.add_edges(edges)
-        g.es["weight"] = weights
-        return g
-    
-    def get_end_to_end_path(g, start_name, end_name):
-    # 1. Verification of Vertices
-        try:
-            id_a = g.vs.find(name=start_name).index
-            id_b = g.vs.find(name=end_name).index
-        except ValueError:
-            return [] # One of the points is not in the graph
-
-        # 2. Safety Check: Filter out any edges that have NaN weights BEFORE Dijkstra
-        # This cleans the graph of any corrupt data
-        nan_edges = [e.index for e in g.es if np.isnan(e["weight"])]
-        if nan_edges:
-            print(f"Warning: Deleting {len(nan_edges)} edges with NaN weights.")
-            g.delete_edges(nan_edges)
-
-        # 3. Execution
-        try:
-            path_indices = g.get_shortest_paths(id_a, to=id_b, weights=g.es["weight"], output="vpath")[0]
-            path_names = [g.vs[i]["name"] for i in path_indices]
-        
-            return path_names
-        
-        except Exception as e:
-            print(f"Dijkstra failed: {e}")
-            return []
-
-############################
-# LOGICAL MODULE END
-############################
-# ==========================================================
 
 # ==========================================================
 # VISUAL SIMULATION
@@ -293,8 +89,9 @@ class SatelliteSim:
             # Map the igraph ID back to your satellite object
             sat_node = next((n for n in self.topology.nodes if n.sat.name == name), None)
             if sat_node is None:
-                continue
-            p = sat_node.sat.at(self.t).position.km * SCALE
+                p = self.topology.get_gs_position(name, self.t) * SCALE
+            else:
+                p = sat_node.sat.at(self.t).position.km * SCALE
             # Consistent coordinate mapping (X, Z, Y)
             glVertex3f(p[0], p[2], p[1])
         glEnd()
@@ -327,16 +124,24 @@ class SatelliteSim:
     def key(self, win, key, sc, action, mods):
         if action in (glfw.PRESS, glfw.REPEAT):
             if key == glfw.KEY_UP:
+                self.start_sim = self.sim_time()
+                self.start_real = time.time()
                 self.time_multiplier *= 2
                 print("Speed:", self.time_multiplier)
             elif key == glfw.KEY_DOWN:
+                self.start_sim = self.sim_time()
+                self.start_real = time.time()
                 self.time_multiplier /= 2
                 print("Speed:", self.time_multiplier)
 
     # ---------------- MAIN LOOP ----------------
     def run(self):
-        glfw.init()
+        if not glfw.init():
+            raise RuntimeError("GLFW initialization failed; use run_scenario.py for headless runs")
         win = glfw.create_window(1200, 800, "Earth-Safe Logical Topology", None, None)
+        if not win:
+            glfw.terminate()
+            raise RuntimeError("OpenGL window creation failed")
         glfw.make_context_current(win)
         glEnable(GL_DEPTH_TEST)
 
@@ -347,26 +152,15 @@ class SatelliteSim:
 
         while not glfw.window_should_close(win):
             self.t = self.sim_time()
-            pos, isl1, isl2, iol, udl = self.topology.compute(self.t)
+            pos, links, _, _ = self.topology.compute(self.t)
+            isl1, isl2, iol, udl = ([ (a, b) for kind, a, b in links if kind == selected ]
+                                    for selected in LinkType)
             gs_positions = {
                     name: wgs84.latlon(lat, lon, elevation_m=h).at(self.t).position.km
                     for name, lat, lon, h in GROUND_STATIONS
                 }
-            valid_nodes=[]
-            for nodes in self.topology.nodes:
-                p = pos[nodes]
-                if np.any(np.isnan(p)):
-                    print(f"CRITICAL: {nodes.sat.name} has NaN position at {self.t.utc_iso()}")
-                    continue
-                valid_nodes.append(nodes)
-            self.topology.nodes = valid_nodes
-            pos, isl1, isl2, iol, udl = self.topology.compute(self.t)
-            # Check all Ground Station positions
-            for name, p in gs_positions.items():
-                if np.any(np.isnan(p)):
-                    print(f"CRITICAL: Ground Station {name} has NaN position!")
-            g = self.topology.construct_unified_graph(isl1, isl2, iol, udl, pos, gs_positions)
-            path = LogicalTopology.get_end_to_end_path(g, "GS_INDIA", "GS_AUSTRALIA")  # Example satellite name
+            g = self.topology.construct_unified_graph(pos, gs_positions)
+            path = LogicalTopology.get_path(g, "GS_INDIA", "GS_AUSTRALIA")  # Example satellite name
             print("path:", path)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glLoadIdentity()
