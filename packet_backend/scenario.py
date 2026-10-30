@@ -4,6 +4,7 @@ import json
 import math
 from pathlib import Path
 
+from packet_backend.prediction import settings as prediction_settings
 from packet_backend.qos import CLASSES, classify, normalize
 
 C_KM_S = 299792.458
@@ -21,10 +22,13 @@ def integer(value, name, low, high):
     return value
 
 
-def prepare(config: dict, output: Path) -> dict:
+def prepare(config: dict, output: Path, *, class_routing=False) -> dict:
     """Accept explicit dynamic graphs or generate snapshots from the existing orbital model."""
     config = deepcopy(config)
     qos = normalize(config.get('qos'))
+    prediction = prediction_settings(config.get('prediction')) if class_routing else None
+    if class_routing and qos is None:
+        raise ValueError('Predictive/class routing requires an explicit qos configuration')
     if config.get('schema_version') != 1:
         raise ValueError('Unsupported schema_version')
     duration = positive(config['duration_s'], 'duration_s')
@@ -74,7 +78,7 @@ def prepare(config: dict, output: Path) -> dict:
             delay = edge.get('delay_s')
             if delay is None:
                 delay = positive(edge['distance_km'], 'distance_km') / C_KM_S
-            delay = positive(delay, 'delay_s')
+            delay = float(positive(delay, 'delay_s'))
             edge_rate = integer(edge.get('capacity_bps', rate), 'link capacity', 1, 10**12)
             edge_queue = integer(edge.get('queue_packets', queue), 'link queue', 1, 1000000)
             if qos and edge_queue < 3:
@@ -143,11 +147,12 @@ def prepare(config: dict, output: Path) -> dict:
         raise ValueError('Too many flows for per-flow destination ports')
     plan = {'duration_s': duration, 'seed': seed, 'mtu_bytes': mtu, 'ttl': ttl,
             'nodes': names, 'links': links, 'snapshots': snapshots, 'flows': flows, 'qos': qos,
+            'class_routing': class_routing, 'prediction': prediction,
             'topology_source': 'explicit' if explicit else 'skyfield_sgp4',
             'source_scenario': config}
     weights = [qos['weights'][name] for name in CLASSES] if qos else [4, 2, 1]
     quantum = qos['quantum_bytes'] if qos else 1500
-    lines = [f'LEO3 {len(names)} {len(links)} {len(flows)} {len(snapshots)} {duration} {seed} {mtu} {ttl} {int(qos is not None)} ' + ' '.join(map(str, [*weights, quantum]))]
+    lines = [f'LEO4 {len(names)} {len(links)} {len(flows)} {len(snapshots)} {duration} {seed} {mtu} {ttl} {int(qos is not None)} ' + ' '.join(map(str, [*weights, quantum, int(class_routing)]))]
     lines += [f'{l["a"]} {l["b"]} {l["capacity_bps"]} {l["queue_packets"]}' for l in links]
     lines += [' '.join(str(f[key]) for key in ('id','src','dst','protocol','start','end','rate','size','max_bytes','class_id')) for f in flows]
     for snap in snapshots:

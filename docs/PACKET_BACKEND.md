@@ -1,4 +1,6 @@
-# Packet-backend contract (Phases 2–3)
+# Packet-backend contract (Phases 2–4)
+
+Phase 4 adds class route tables and causal forecasting; see [the Phase 4 contract and reproduction guide](PHASE4_STATUS.md). The private generated plan is now `LEO4`, and class-routing results use schema 4. Legacy two-part route keys remain supported.
 
 Phase 3 extensions are specified in [QoS configuration and metric semantics](PHASE3_STATUS.md). Omitting `qos` preserves FIFO; enabling it selects class queues and result schema 3.
 
@@ -53,7 +55,7 @@ A policy receives a dictionary containing only current information:
 
 It returns `{(source_node_id, destination_node_id): next_hop_node_id}`. The default policy is propagation-weighted Dijkstra with stable tie breaking. Every installed chain must reach its destination over currently available links; unknown endpoints, unavailable links, cycles and dead ends fail the run. Omitting routes is permitted and produces unreachable outcomes. All actions for one observation are applied within one ns-3 event before packet execution resumes.
 
-The callback receives no future snapshots or realised traffic. `control.json` records each observation/action. The routing table remains destination-based. Phase 3 adds per-class queue observations and scheduling, the congestion policy, and optional control ticks; class/flow-specific routing is a future contract extension. The interface establishes live feedback, not PPO throughput guarantees. Wall-time measurements are recorded separately in the manifest and excluded from the deterministic result hash.
+The callback receives no future snapshots or realised traffic. `control.json` records each observation/action. Phase 3 adds per-class queue observations and scheduling, the congestion policy, and optional control ticks. Phase 4 optionally installs separate destination-based tables for each class and adds current active-demand metadata plus cumulative arrival/service/drop counters. The Phase 4 guide defines the extended action and output formats. The interface establishes live feedback, not PPO throughput guarantees. Wall-time measurements are recorded separately in the manifest and excluded from the deterministic result hash.
 
 ## Results and accounting
 

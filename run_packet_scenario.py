@@ -8,17 +8,21 @@ import subprocess
 import time
 
 from packet_backend.build import ROOT, build_engine
-from packet_backend.controller import execute, shortest_routes, resolve_policy
+from packet_backend.controller import execute, shortest_routes, resolve_policy, policy_name
 from packet_backend.results import summarize
 from packet_backend.scenario import prepare
 
 
 def _run(scenario, output, *, ns3_python=None, policy=shortest_routes, timeout_s=120):
-    policy = resolve_policy(policy)
     config = json.loads(Path(scenario).read_text()) if not isinstance(scenario, dict) else scenario
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    plan = prepare(config, output)
+    from packet_backend.predictive import MODES, PredictivePolicy
+    class_routing = 'prediction' in config or isinstance(policy, PredictivePolicy) or isinstance(policy, str) and policy in MODES
+    plan = prepare(config, output, class_routing=class_routing)
+    policy = resolve_policy(policy, plan, output)
+    if isinstance(policy, PredictivePolicy) and policy.config != plan['prediction']:
+        raise ValueError('Custom predictive policy settings must match the scenario prediction configuration')
     binary = build_engine(ns3_python)
     start = time.perf_counter()
     control = execute(binary, plan, output, policy, timeout_s)
@@ -29,17 +33,23 @@ def _run(scenario, output, *, ns3_python=None, policy=shortest_routes, timeout_s
         result['schema_version'] = 3
         result['qos'] = summarize_qos(plan, result)
         result['assumptions']['queue'] = 'Weighted byte DRR; reserved per-class packet limits; non-preemptive; TCP and ACKs are Bulk'
-    result['routing_policy'] = f'{policy.__module__}.{policy.__qualname__}'
+    if plan['class_routing']:
+        from packet_backend.prediction_metrics import summarize_predictions
+        result['schema_version'] = 4
+        result['prediction'] = summarize_predictions(control['observations'], plan['prediction'])
+        result['qos']['fallback_decisions'] = result['prediction']['fallbacks']
+        result['qos']['fallback_note'] = 'Recorded predictive safeguard fallbacks replace an entire class/destination tree with current-state congestion routing.' if hasattr(policy, 'last_diagnostics') else 'Conventional policy; no predictive fallback.'
+    result['routing_policy'] = policy_name(policy)
     encoded = json.dumps(result,sort_keys=True,indent=2,allow_nan=False)+'\n'
     (output/'results.json').write_text(encoded)
     sources = [Path(__file__).resolve(), *sorted((ROOT/'packet_backend').glob('*.py')),
                ROOT/'packet_backend/engine.cc', *sorted((ROOT/'packet_backend').glob('*.h')), ROOT/'logic_module.py', ROOT/'setup.py',ROOT/'sim_man.py',
-               ROOT/'requirements.txt', ROOT/'requirements-ns3.txt', ROOT/'compare_policies.py']
+               ROOT/'requirements.txt', ROOT/'requirements-ns3.txt', ROOT/'compare_policies.py', ROOT/'compare_predictive.py']
     revision = subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,capture_output=True,text=True).stdout.strip()
     dirty = bool(subprocess.run(['git','status','--porcelain'],cwd=ROOT,capture_output=True,text=True).stdout)
     manifest = {'result_sha256':hashlib.sha256(encoded.encode()).hexdigest(), 'git_revision':revision,
                 'working_tree_dirty':dirty, 'source_sha256':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
-                'ns3':'3.44.post0', 'policy':f'{policy.__module__}.{policy.__qualname__}',
+                'ns3':'3.44.post0', 'policy':policy_name(policy),
                 'dependencies':{p:importlib.metadata.version(p) for p in ('numpy','skyfield','sgp4','igraph')},
                 'engine_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),
                 'engine_wall_seconds':elapsed, 'controller_wall_seconds':control['controller_wall_seconds']}
@@ -68,7 +78,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--scenario',default='scenarios/packet_baseline.json')
     parser.add_argument('--output',default='runs/packet-baseline')
-    parser.add_argument('--policy', choices=('propagation','congestion'), default='propagation')
+    parser.add_argument('--policy', choices=('propagation','congestion','qos_current','lifetime','queue_forecast','predictive'), default='propagation')
     parser.add_argument('--ns3-python',help='Python executable in the pinned ns-3 environment')
     args = parser.parse_args()
     print(json.dumps(run(args.scenario,args.output,ns3_python=args.ns3_python,policy=args.policy)['flows'],indent=2))

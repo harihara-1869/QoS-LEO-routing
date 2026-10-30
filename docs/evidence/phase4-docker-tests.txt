@@ -1,0 +1,65 @@
+test_generation_conserves_rate_and_boundaries (test_foundation.FoundationTests.test_generation_conserves_rate_and_boundaries) ... ok
+test_occlusion_and_degenerate_points (test_foundation.FoundationTests.test_occlusion_and_degenerate_points) ... ok
+test_partial_final_interval (test_foundation.FoundationTests.test_partial_final_interval) ... Generated OMM CSV: /tmp/tmpwd4l5mcd/out/constellation.csv (200 satellites)
+ok
+test_plane_grouping_range_gate_and_ground_visibility (test_foundation.FoundationTests.test_plane_grouping_range_gate_and_ground_visibility) ... Generated OMM CSV: /tmp/tmp7qxx60v1/s.csv (100 satellites)
+ok
+test_repeatability_and_route_accounting (test_foundation.FoundationTests.test_repeatability_and_route_accounting) ... Generated OMM CSV: /tmp/tmpcjd3n_z0/a/constellation.csv (200 satellites)
+Generated OMM CSV: /tmp/tmpcjd3n_z0/b/constellation.csv (200 satellites)
+ok
+test_scheduler_resume_ties_and_past (test_foundation.FoundationTests.test_scheduler_resume_ties_and_past) ... ok
+test_single_satellite_has_no_self_link (test_foundation.FoundationTests.test_single_satellite_has_no_self_link) ... Generated OMM CSV: /tmp/tmpzmglcndu/s.csv (1 satellites)
+ok
+test_zero_rate_and_fractional_accumulation (test_foundation.FoundationTests.test_zero_rate_and_fractional_accumulation) ... ok
+test_bottleneck_serializes_packets (test_packet_backend.PacketBackendTests.test_bottleneck_serializes_packets) ... ok
+test_down_drops_waiting_and_in_flight_even_after_restore (test_packet_backend.PacketBackendTests.test_down_drops_waiting_and_in_flight_even_after_restore) ... ok
+test_failed_rerun_cannot_leave_stale_success (test_packet_backend.PacketBackendTests.test_failed_rerun_cannot_leave_stale_success) ... ok
+test_feedback_receives_queue_and_can_change_route (test_packet_backend.PacketBackendTests.test_feedback_receives_queue_and_can_change_route) ... ok
+test_loop_action_rejected (test_packet_backend.PacketBackendTests.test_loop_action_rejected) ... ok
+test_orbital_topology_drives_packet_engine (test_packet_backend.PacketBackendTests.test_orbital_topology_drives_packet_engine) ... Generated OMM CSV: /tmp/tmpdrog70yd/constellation.csv (200 satellites)
+ok
+test_overflow_and_accounting (test_packet_backend.PacketBackendTests.test_overflow_and_accounting) ... ok
+test_reno_loss_retransmits_reduces_window_and_completes (test_packet_backend.PacketBackendTests.test_reno_loss_retransmits_reduces_window_and_completes) ... ok
+test_reno_reference_arithmetic (test_packet_backend.PacketBackendTests.test_reno_reference_arithmetic) ... ok
+test_reroute_uses_alternate_path (test_packet_backend.PacketBackendTests.test_reroute_uses_alternate_path) ... ok
+test_reset_and_repeatability (test_packet_backend.PacketBackendTests.test_reset_and_repeatability) ... ok
+test_short_path_and_hop_accounting (test_packet_backend.PacketBackendTests.test_short_path_and_hop_accounting) ... ok
+test_single_link_serialization_and_propagation (test_packet_backend.PacketBackendTests.test_single_link_serialization_and_propagation) ... ok
+test_tcp_recovers_across_route_change (test_packet_backend.PacketBackendTests.test_tcp_recovers_across_route_change) ... ok
+test_unreachable_and_horizon_are_distinct (test_packet_backend.PacketBackendTests.test_unreachable_and_horizon_are_distinct) ... ok
+test_zero_rate_and_ttl_expiration (test_packet_backend.PacketBackendTests.test_zero_rate_and_ttl_expiration) ... ok
+test_rejects_invalid_scenarios_before_backend (test_packet_backend.ScenarioValidationTests.test_rejects_invalid_scenarios_before_backend) ... ok
+test_class_loop_is_rejected (test_prediction.ForecastUnitTests.test_class_loop_is_rejected) ... ok
+test_cold_start_rate_arithmetic_and_link_reset (test_prediction.ForecastUnitTests.test_cold_start_rate_arithmetic_and_link_reset) ... ok
+test_forecast_configuration_validation (test_prediction.ForecastUnitTests.test_forecast_configuration_validation) ... ok
+test_forecast_scoring_arithmetic_and_censoring (test_prediction.ForecastUnitTests.test_forecast_scoring_arithmetic_and_censoring) ... ok
+test_impossible_deadline_and_bulk_floor_are_logged (test_prediction.ForecastUnitTests.test_impossible_deadline_and_bulk_floor_are_logged) ... ok
+test_link_prediction_avoids_short_lived_edge (test_prediction.ForecastUnitTests.test_link_prediction_avoids_short_lived_edge) ... ok
+test_orbital_lifetime_brackets_actual_elevation_loss (test_prediction.ForecastUnitTests.test_orbital_lifetime_brackets_actual_elevation_loss) ... Generated OMM CSV: /tmp/tmp3zo_rkgk/orbit.csv (1 satellites)
+ok
+test_queue_growth_changes_route_before_current_backlog_does (test_prediction.ForecastUnitTests.test_queue_growth_changes_route_before_current_backlog_does) ... ok
+test_switch_penalty_and_deadline_override (test_prediction.ForecastUnitTests.test_switch_penalty_and_deadline_override) ... ok
+test_unknown_link_lifetime_is_not_an_infinite_promise (test_prediction.ForecastUnitTests.test_unknown_link_lifetime_is_not_an_infinite_promise) ... ok
+test_urgent_classes_avoid_bulk_only_queue_pressure (test_prediction.ForecastUnitTests.test_urgent_classes_avoid_bulk_only_queue_pressure) ... ok
+test_counters_include_overflow_and_forecasts_are_scored (test_prediction.PredictiveEngineTests.test_counters_include_overflow_and_forecasts_are_scored) ... ok
+test_future_workload_and_topology_suffix_cannot_change_prefix (test_prediction.PredictiveEngineTests.test_future_workload_and_topology_suffix_cannot_change_prefix) ... ok
+test_orbital_forecasts_integrate_with_backend (test_prediction.PredictiveEngineTests.test_orbital_forecasts_integrate_with_backend) ... Generated OMM CSV: /tmp/tmp7shyc2h4/constellation.csv (200 satellites)
+ok
+test_real_packets_follow_distinct_class_tables (test_prediction.PredictiveEngineTests.test_real_packets_follow_distinct_class_tables) ... ok
+test_stateful_policy_resets_between_runs (test_prediction.PredictiveEngineTests.test_stateful_policy_resets_between_runs) ... ok
+test_tcp_bulk_survives_class_routing_and_failure (test_prediction.PredictiveEngineTests.test_tcp_bulk_survives_class_routing_and_failure) ... ok
+test_live_class_observations_and_no_future_state (test_qos.QosEngineTests.test_live_class_observations_and_no_future_state) ... ok
+test_matched_comparison_and_repeatability (test_qos.QosEngineTests.test_matched_comparison_and_repeatability) ... ok
+test_qos_preserves_link_failure_accounting (test_qos.QosEngineTests.test_qos_preserves_link_failure_accounting) ... ok
+test_tcp_is_bulk_and_completes (test_qos.QosEngineTests.test_tcp_is_bulk_and_completes) ... ok
+test_weighted_bytes_and_bulk_service_under_saturation (test_qos.QosEngineTests.test_weighted_bytes_and_bulk_service_under_saturation) ... ok
+test_alias_control_ticks_and_validation (test_qos.QosUnitTests.test_alias_control_ticks_and_validation) ... ok
+test_congestion_uses_forward_not_reverse_queue (test_qos.QosUnitTests.test_congestion_uses_forward_not_reverse_queue) ... ok
+test_deadline_boundary_loss_and_censoring (test_qos.QosUnitTests.test_deadline_boundary_loss_and_censoring) ... ok
+test_fairness_and_idle_exclusion (test_qos.QosUnitTests.test_fairness_and_idle_exclusion) ... ok
+test_seeded_workloads (test_qos.QosUnitTests.test_seeded_workloads) ... ok
+
+----------------------------------------------------------------------
+Ran 52 tests in 12.164s
+
+OK

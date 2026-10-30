@@ -55,7 +55,8 @@ def summarize(plan: dict, output: Path, control: dict) -> dict:
         route_changes = 0
         last_path = None
         for observation in control['observations']:
-            path = route_path(observation['routes'], f['src'], f['dst'])
+            rows = [row[1:] for row in observation['class_routes'] if row[0]==f['class_id']] if 'class_routes' in observation else observation['routes']
+            path = route_path(rows, f['src'], f['dst'])
             if last_path is not None and last_path != path:
                 route_changes += 1
             last_path = path
@@ -104,7 +105,7 @@ def summarize(plan: dict, output: Path, control: dict) -> dict:
     return {'schema_version':2,'backend':'ns-3.44','mode':'packet_simulation','duration_s':duration,
             'goodput_window':'entire_run','scenario':plan['source_scenario'], 'nodes':names,
             'flows':flows,'udp_packets':packets,'queues':queues,'events':events,
-            'route_snapshots':[{'time_s':o['time_s'],'routes':o['routes']} for o in control['observations']],
+            'route_snapshots':[{'time_s':o['time_s'],'routes':o['routes'], **({'class_routes':o['class_routes']} if 'class_routes' in o else {})} for o in control['observations']],
             'assumptions':{'queue':'FIFO DropTail per directed device; flow control disabled; no root queue disc',
                            'link_down':'drop queued; invalidate all transmissions in progress; recompute routing',
                            'link_restore':'old invalidated transmissions remain invalid',

@@ -12,7 +12,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <vector>
-#include "qos_queue.h"
+#include "class_routing.h"
+#include <tuple>
 
 namespace leo {
 using namespace ns3;
@@ -54,18 +55,6 @@ public:
   void DoReset() override { invalid.clear(); }
 };
 
-// A stable source address lets TCP survive changes to its egress interface.
-class IdentityRouting : public Ipv4StaticRouting {
-public:
-  Ipv4Address identity;
-  Ptr<Ipv4Route> RouteOutput(Ptr<Packet> packet, const Ipv4Header& header,
-                           Ptr<NetDevice> device, Socket::SocketErrno& error) override {
-    auto route = Ipv4StaticRouting::RouteOutput(packet, header, device, error);
-    if (route) route->SetSource(identity);
-    return route;
-  }
-};
-
 struct PacketRecord {
   uint32_t flow, size;
   double created, ended = -1;
@@ -102,15 +91,15 @@ public:
   std::vector<Flow> flows;
   std::vector<Ptr<Socket>> receivers;
   std::vector<Snapshot> snapshots;
-  std::vector<Ptr<Ipv4StaticRouting>> routes;
+  std::vector<Ptr<IdentityRouting>> routes;
   std::vector<Ipv4Address> identities;
   std::map<uint64_t, PacketRecord> packets;
-  std::map<std::pair<uint32_t,uint32_t>, uint32_t> nextHops;
+  std::map<std::tuple<uint32_t,uint32_t,uint32_t>, uint32_t> nextHops;
   std::ofstream events, udp, tcp;
   double duration;
   uint64_t nextPacket = 0, nextTransmission = 0;
   uint32_t mtu, ttl;
-  bool qos=false;
+  bool qos=false, classRouting=false;
   std::array<uint32_t,3> weights{4,2,1};
   uint32_t quantum=1500;
 
@@ -266,6 +255,7 @@ public:
         if(qos) {
           auto queue=DynamicCast<ClassQueue>(links[i].dev[d]->GetQueue());
           for(uint32_t c=0;c<3;++c) std::cout << ' ' << queue->ClassPackets(c) << ' ' << queue->ClassBytes(c);
+          for(uint32_t c=0;c<3;++c) std::cout << ' ' << queue->arrived[c] << ' ' << queue->served[c] << ' ' << queue->rejected[c];
         }
         std::cout << '\n';
       }
@@ -273,10 +263,14 @@ public:
     std::string word;
     uint32_t count;
     if (!(std::cin >> word >> count) || word != "ROUTES") throw std::runtime_error("Missing route response");
-    for (auto route : routes) while(route->GetNRoutes()) route->RemoveRoute(0);
-    std::map<std::pair<uint32_t,uint32_t>,uint32_t> updated;
+    for (auto route : routes) {
+      while(route->GetNRoutes()) route->RemoveRoute(0);
+      if(classRouting) for(auto table : route->classes) while(table->GetNRoutes()) table->RemoveRoute(0);
+    }
+    std::map<std::tuple<uint32_t,uint32_t,uint32_t>,uint32_t> updated;
     for (uint32_t i=0; i<count; ++i) {
-      uint32_t src, dst, next;
+      uint32_t c=2, src, dst, next;
+      if(classRouting && (!(std::cin >> c) || c>2)) throw std::runtime_error("Invalid route class");
       if (!(std::cin >> src >> dst >> next)) throw std::runtime_error("Truncated route response");
       if (src>=nodes.GetN() || dst>=nodes.GetN() || next>=nodes.GetN() || src==dst)
         throw std::runtime_error("Invalid routing endpoint");
@@ -285,16 +279,18 @@ public:
         if (!l.active) continue;
         int dir = l.a==src && l.b==next ? 0 : l.b==src && l.a==next ? 1 : -1;
         if (dir<0) continue;
-        routes[src]->AddHostRouteTo(identities[dst], l.address[1-dir], l.interface[dir]);
+        Ptr<Ipv4StaticRouting> table = routes[src];
+        if(classRouting) table = routes[src]->classes[c];
+        table->AddHostRouteTo(identities[dst], l.address[1-dir], l.interface[dir]);
         installed = true; break;
       }
       if (!installed) throw std::runtime_error("Route selects an unavailable link");
-      if (!updated.emplace(std::make_pair(src,dst),next).second) throw std::runtime_error("Duplicate route");
+      if (!updated.emplace(std::make_tuple(c,src,dst),next).second) throw std::runtime_error("Duplicate route");
     }
     for (auto& [key,next] : updated)
-      if (!nextHops.count(key) || nextHops[key]!=next) Event("route", key.first, key.second, next, 1);
+      if (!nextHops.count(key) || nextHops[key]!=next) Event(classRouting ? "class_route" : "route", std::get<1>(key), std::get<2>(key), next, 1, classRouting ? std::to_string(std::get<0>(key)) : "-");
     for (auto& [key,next] : nextHops)
-      if (!updated.count(key)) Event("route", key.first, key.second, -1, 0);
+      if (!updated.count(key)) Event(classRouting ? "class_route" : "route", std::get<1>(key), std::get<2>(key), -1, 0, classRouting ? std::to_string(std::get<0>(key)) : "-");
     nextHops = std::move(updated);
   }
 
@@ -303,8 +299,8 @@ public:
     uint32_t n, m, f, k, seed;
     std::string magic;
     in >> magic >> n >> m >> f >> k >> duration >> seed >> mtu >> ttl >> qos
-       >> weights[0] >> weights[1] >> weights[2] >> quantum;
-    if (magic!="LEO3" || !in) throw std::runtime_error("Invalid plan header");
+       >> weights[0] >> weights[1] >> weights[2] >> quantum >> classRouting;
+    if (magic!="LEO4" || !in) throw std::runtime_error("Invalid plan header");
     RngSeedManager::SetSeed(seed);
     Config::SetDefault("ns3::Ipv4L3Protocol::DefaultTtl", UintegerValue(ttl));
     Config::SetDefault("ns3::TcpL4Protocol::SocketType", TypeIdValue(TcpLinuxReno::GetTypeId()));
@@ -326,6 +322,7 @@ public:
       ip->AddAddress(0, Ipv4InterfaceAddress(identity, Ipv4Mask("255.255.255.255")));
       auto stableRouting = CreateObject<IdentityRouting>();
       stableRouting->identity = identity;
+      stableRouting->perClass = classRouting;
       ip->SetRoutingProtocol(stableRouting);
       routes.push_back(stableRouting);
       auto l3 = nodes.Get(i)->GetObject<Ipv4L3Protocol>();
