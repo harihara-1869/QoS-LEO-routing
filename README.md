@@ -2,9 +2,40 @@
 
 Phase 2 adds a compiled ns-3 packet backend with dynamic topology, bounded queues, UDP delivery/drop records, runtime route updates and validated TCP Linux Reno cases. The original Phase 1 headless runner remains available for route feasibility. QoS classes and learned routing are later phases.
 
+## Container setup (Windows and macOS)
+
+The Phase 2 packet backend requires Linux. The pinned `ns3` package only publishes x86_64 Linux wheels, and `packet_backend/build.py` uses Linux compiler and linker flags. On Windows and macOS, run the packet simulator inside the provided Docker image. Install Docker Desktop first.
+
+Build the image once from the repository root:
+
+```bash
+docker build --platform linux/amd64 -t leo-sim .
+```
+
+Start an interactive shell with the repository mounted at `/workspace`:
+
+```bash
+docker run --rm -it --platform linux/amd64 -v "$PWD":/workspace -w /workspace leo-sim
+```
+
+Inside the container the two virtual environments from the native instructions already exist, so there is no dependency installation step. Use `/opt/leo-venv/bin/python` for the orbital runner and tests, and leave ns-3 to `/opt/leo-ns3-venv` (the image sets `LEO_NS3_PYTHON`):
+
+```bash
+/opt/leo-venv/bin/python run_packet_scenario.py --scenario scenarios/packet_baseline.json --output runs/packet-baseline
+/opt/leo-venv/bin/python -m unittest discover -s tests -v
+/opt/leo-venv/bin/python run_scenario.py --scenario scenarios/baseline.json --output runs/baseline
+```
+
+Notes:
+
+- On Apple Silicon the image runs as `linux/amd64` under emulation. It works but is slower; always pass `--platform linux/amd64` so pip finds the ns-3 wheel.
+- Files written to `runs/` belong to the container user. On Linux hosts add `--user "$(id -u):$(id -g)"` to keep host ownership.
+- The OpenGL viewer needs a display, so it is not available in the container by default. Run `test.py` natively with `requirements-viz.txt` if you need it.
+- Windows users can alternatively use WSL2 with Ubuntu 24.04. The native commands below then work unchanged, apart from the `.venv/bin` path.
+
 ## Phase 2 packet simulation
 
-Run from the repository root. The compiled adapter requires a C++20-capable `g++` and the pinned ns-3 Linux wheel; Python 3.12 / Linux x86_64 was tested. Keep the orbital and ns-3 dependencies in separate virtual environments.
+Run from the repository root. The compiled adapter requires a C++20-capable `g++` and the pinned ns-3 Linux wheel; Python 3.12 / Linux x86_64 was tested. Keep the orbital and ns-3 dependencies in separate virtual environments. On Windows and macOS, use the [container setup](#container-setup-windows-and-macos) instead.
 
 ```bash
 python3 -m venv .venv

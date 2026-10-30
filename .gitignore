@@ -210,3 +210,7 @@ __marimo__/
 runs/
 .external/
 .venv-ns3/
+
+# Local tooling and planning notes
+.commandcode/
+LEO_Routing_Phased_Implementation_Plan.md
