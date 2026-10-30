@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "seed": 7,
+  "duration_s": 10,
+  "network": {
+    "capacity_bps": 1000000,
+    "queue_packets": 2
+  },
+  "topology": {
+    "nodes": [
+      "a",
+      "b"
+    ],
+    "snapshots": [
+      {
+        "time_s": 0,
+        "links": [
+          {
+            "a": "a",
+            "b": "b",
+            "delay_s": 0.005
+          }
+        ]
+      }
+    ]
+  },
+  "flows": [
+    {
+      "flow_id": 1,
+      "src": "a",
+      "dst": "b",
+      "protocol": "tcp",
+      "start_time": 0.01,
+      "end_time": 9.9,
+      "packet_size_bytes": 1000,
+      "max_bytes": 100000
+    }
+  ]
+}

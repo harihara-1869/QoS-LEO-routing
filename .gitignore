@@ -209,3 +209,4 @@ __marimo__/
 # Generated scenarios and external engine checkouts
 runs/
 .external/
+.venv-ns3/

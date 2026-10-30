@@ -1,0 +1,562 @@
+{
+  "schema_version": 1,
+  "ns3_version": "3.44.post0",
+  "cases": {
+    "bottleneck": {
+      "scenario": "scenarios/phase2/bottleneck.json",
+      "flows": [
+        {
+          "flow_id": 1,
+          "protocol": "udp",
+          "src": "a",
+          "dst": "c",
+          "route_changes": 0,
+          "generated": 3,
+          "delivered": 3,
+          "dropped": 0,
+          "in_flight": 0,
+          "delivered_bytes": 3000,
+          "delivery_ratio": 1.0,
+          "delay_mean_s": 0.02451,
+          "delay_p95_s": 0.031025999999999998,
+          "delay_p99_s": 0.0316052,
+          "drop_reasons": {},
+          "goodput_bps": 24000.0
+        }
+      ],
+      "first_udp_packet": {
+        "packet_id": 0,
+        "flow_id": 1,
+        "size_bytes": 1000,
+        "created_s": 0.01,
+        "ended_s": 0.02727,
+        "status": "delivered",
+        "reason": "-",
+        "path": [
+          "a",
+          "b",
+          "c"
+        ],
+        "delay_s": 0.01727
+      },
+      "link_transitions": 0,
+      "max_queue_packets": 2,
+      "cwnd_reductions": 0,
+      "result_sha256": "befe87f6183e08cb998dacc93d1f46594173f371a79e475a4320e070d43b6697",
+      "source_sha256": {
+        "run_packet_scenario.py": "76c79ce31ab18ad5f18f4dd73dde66e2fe55c0ba646df955c75c7f6962a6139a",
+        "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+        "packet_backend/build.py": "491b663d9fd93a0780e09082681a08a76cee8dfa60e827ec985c6f3b75b3e0d5",
+        "packet_backend/controller.py": "116e5a9c5e2022d5bb4fda6d29f3e83bc1bb427654a19e6e8589c47338939e08",
+        "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+        "packet_backend/scenario.py": "100d2dc6efc44552d661dda80e859a6b38d31febd7d5b15f1e71c45e985f49fc",
+        "packet_backend/engine.cc": "3da9672a40693eeec32100fb575c2ea4947d266c992ff431dd6affb24581534b",
+        "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+        "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+        "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+        "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+        "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027"
+      },
+      "engine_wall_seconds": 0.022433595004258677,
+      "controller_wall_seconds": 2.7098998543806374e-05
+    },
+    "disappearing_link": {
+      "scenario": "scenarios/phase2/disappearing_link.json",
+      "flows": [
+        {
+          "flow_id": 1,
+          "protocol": "udp",
+          "src": "a",
+          "dst": "b",
+          "route_changes": 2,
+          "generated": 100,
+          "delivered": 14,
+          "dropped": 86,
+          "in_flight": 0,
+          "delivered_bytes": 14000,
+          "delivery_ratio": 0.14,
+          "delay_mean_s": 0.02746857142857143,
+          "delay_p95_s": 0.029654,
+          "delay_p99_s": 0.029674799999999998,
+          "drop_reasons": {
+            "link_down_in_flight": 1,
+            "link_down_queued": 2,
+            "no_route": 5,
+            "queue_overflow": 78
+          },
+          "goodput_bps": 112000.0
+        }
+      ],
+      "first_udp_packet": {
+        "packet_id": 0,
+        "flow_id": 1,
+        "size_bytes": 1000,
+        "created_s": 0.01,
+        "ended_s": 0.013,
+        "status": "dropped",
+        "reason": "link_down_in_flight",
+        "path": [
+          "a"
+        ],
+        "delay_s": null
+      },
+      "link_transitions": 2,
+      "max_queue_packets": 2,
+      "cwnd_reductions": 0,
+      "result_sha256": "1a35b2184f8d8e7bd001033db01f63959401a226e36afa8d6e0d93df3c0dd2f2",
+      "source_sha256": {
+        "run_packet_scenario.py": "76c79ce31ab18ad5f18f4dd73dde66e2fe55c0ba646df955c75c7f6962a6139a",
+        "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+        "packet_backend/build.py": "491b663d9fd93a0780e09082681a08a76cee8dfa60e827ec985c6f3b75b3e0d5",
+        "packet_backend/controller.py": "116e5a9c5e2022d5bb4fda6d29f3e83bc1bb427654a19e6e8589c47338939e08",
+        "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+        "packet_backend/scenario.py": "100d2dc6efc44552d661dda80e859a6b38d31febd7d5b15f1e71c45e985f49fc",
+        "packet_backend/engine.cc": "3da9672a40693eeec32100fb575c2ea4947d266c992ff431dd6affb24581534b",
+        "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+        "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+        "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+        "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+        "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027"
+      },
+      "engine_wall_seconds": 0.022494636999908835,
+      "controller_wall_seconds": 3.659698995761573e-05
+    },
+    "orbital_transition": {
+      "scenario": "scenarios/phase2/orbital_transition.json",
+      "flows": [
+        {
+          "flow_id": 1,
+          "protocol": "udp",
+          "src": "GS_INDIA",
+          "dst": "GS_AUSTRALIA",
+          "route_changes": 1,
+          "generated": 200,
+          "delivered": 200,
+          "dropped": 0,
+          "in_flight": 0,
+          "delivered_bytes": 300000,
+          "delivery_ratio": 1.0,
+          "delay_mean_s": 0.04687231479999946,
+          "delay_p95_s": 0.05124851899999783,
+          "delay_p99_s": 0.05124851899999783,
+          "drop_reasons": {},
+          "goodput_bps": 20000.0
+        }
+      ],
+      "first_udp_packet": {
+        "packet_id": 0,
+        "flow_id": 1,
+        "size_bytes": 1500,
+        "created_s": 0.0,
+        "ended_s": 0.046398051,
+        "status": "delivered",
+        "reason": "-",
+        "path": [
+          "GS_INDIA",
+          "SAT-01-08",
+          "SAT-01-09",
+          "SAT-01-10",
+          "SAT-01-11",
+          "SAT-01-12",
+          "GS_AUSTRALIA"
+        ],
+        "delay_s": 0.046398051
+      },
+      "link_transitions": 31,
+      "max_queue_packets": 1,
+      "cwnd_reductions": 0,
+      "result_sha256": "e7c5c4d65588a3b924f1ce006b116bd9125500c997c95f6c91c08b9a01b7a18c",
+      "source_sha256": {
+        "run_packet_scenario.py": "76c79ce31ab18ad5f18f4dd73dde66e2fe55c0ba646df955c75c7f6962a6139a",
+        "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+        "packet_backend/build.py": "491b663d9fd93a0780e09082681a08a76cee8dfa60e827ec985c6f3b75b3e0d5",
+        "packet_backend/controller.py": "116e5a9c5e2022d5bb4fda6d29f3e83bc1bb427654a19e6e8589c47338939e08",
+        "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+        "packet_backend/scenario.py": "100d2dc6efc44552d661dda80e859a6b38d31febd7d5b15f1e71c45e985f49fc",
+        "packet_backend/engine.cc": "3da9672a40693eeec32100fb575c2ea4947d266c992ff431dd6affb24581534b",
+        "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+        "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+        "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+        "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+        "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027"
+      },
+      "engine_wall_seconds": 0.3205475350114284,
+      "controller_wall_seconds": 0.02024942697607912
+    },
+    "overflow": {
+      "scenario": "scenarios/phase2/overflow.json",
+      "flows": [
+        {
+          "flow_id": 1,
+          "protocol": "udp",
+          "src": "a",
+          "dst": "b",
+          "route_changes": 0,
+          "generated": 100,
+          "delivered": 15,
+          "dropped": 85,
+          "in_flight": 0,
+          "delivered_bytes": 15000,
+          "delivery_ratio": 0.15,
+          "delay_mean_s": 0.02752,
+          "delay_p95_s": 0.029651999999999998,
+          "delay_p99_s": 0.029674399999999997,
+          "drop_reasons": {
+            "queue_overflow": 85
+          },
+          "goodput_bps": 120000.0
+        }
+      ],
+      "first_udp_packet": {
+        "packet_id": 0,
+        "flow_id": 1,
+        "size_bytes": 1000,
+        "created_s": 0.01,
+        "ended_s": 0.02324,
+        "status": "delivered",
+        "reason": "-",
+        "path": [
+          "a",
+          "b"
+        ],
+        "delay_s": 0.01324
+      },
+      "link_transitions": 0,
+      "max_queue_packets": 2,
+      "cwnd_reductions": 0,
+      "result_sha256": "d9bd08597f7a5e8079a5cdc6d013717b1ea94ada79dc004797a9778f3620401a",
+      "source_sha256": {
+        "run_packet_scenario.py": "76c79ce31ab18ad5f18f4dd73dde66e2fe55c0ba646df955c75c7f6962a6139a",
+        "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+        "packet_backend/build.py": "491b663d9fd93a0780e09082681a08a76cee8dfa60e827ec985c6f3b75b3e0d5",
+        "packet_backend/controller.py": "116e5a9c5e2022d5bb4fda6d29f3e83bc1bb427654a19e6e8589c47338939e08",
+        "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+        "packet_backend/scenario.py": "100d2dc6efc44552d661dda80e859a6b38d31febd7d5b15f1e71c45e985f49fc",
+        "packet_backend/engine.cc": "3da9672a40693eeec32100fb575c2ea4947d266c992ff431dd6affb24581534b",
+        "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+        "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+        "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+        "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+        "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027"
+      },
+      "engine_wall_seconds": 0.023352015996351838,
+      "controller_wall_seconds": 2.0463994587771595e-05
+    },
+    "reroute": {
+      "scenario": "scenarios/phase2/reroute.json",
+      "flows": [
+        {
+          "flow_id": 1,
+          "protocol": "udp",
+          "src": "a",
+          "dst": "d",
+          "route_changes": 1,
+          "generated": 3,
+          "delivered": 3,
+          "dropped": 0,
+          "in_flight": 0,
+          "delivered_bytes": 3000,
+          "delivery_ratio": 1.0,
+          "delay_mean_s": 0.02114666666666666,
+          "delay_p95_s": 0.02248,
+          "delay_p99_s": 0.02248,
+          "drop_reasons": {},
+          "goodput_bps": 24000.0
+        }
+      ],
+      "first_udp_packet": {
+        "packet_id": 0,
+        "flow_id": 1,
+        "size_bytes": 1000,
+        "created_s": 0.01,
+        "ended_s": 0.02848,
+        "status": "delivered",
+        "reason": "-",
+        "path": [
+          "a",
+          "b",
+          "d"
+        ],
+        "delay_s": 0.018479999999999996
+      },
+      "link_transitions": 2,
+      "max_queue_packets": 1,
+      "cwnd_reductions": 0,
+      "result_sha256": "081342ae6a44524f4d69905f7a07fff307bc55b2594c8f11d98303c9e71d5ebf",
+      "source_sha256": {
+        "run_packet_scenario.py": "76c79ce31ab18ad5f18f4dd73dde66e2fe55c0ba646df955c75c7f6962a6139a",
+        "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+        "packet_backend/build.py": "491b663d9fd93a0780e09082681a08a76cee8dfa60e827ec985c6f3b75b3e0d5",
+        "packet_backend/controller.py": "116e5a9c5e2022d5bb4fda6d29f3e83bc1bb427654a19e6e8589c47338939e08",
+        "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+        "packet_backend/scenario.py": "100d2dc6efc44552d661dda80e859a6b38d31febd7d5b15f1e71c45e985f49fc",
+        "packet_backend/engine.cc": "3da9672a40693eeec32100fb575c2ea4947d266c992ff431dd6affb24581534b",
+        "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+        "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+        "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+        "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+        "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027"
+      },
+      "engine_wall_seconds": 0.024425696989055723,
+      "controller_wall_seconds": 4.155600618105382e-05
+    },
+    "short_path": {
+      "scenario": "scenarios/phase2/short_path.json",
+      "flows": [
+        {
+          "flow_id": 1,
+          "protocol": "udp",
+          "src": "a",
+          "dst": "c",
+          "route_changes": 0,
+          "generated": 1,
+          "delivered": 1,
+          "dropped": 0,
+          "in_flight": 0,
+          "delivered_bytes": 1000,
+          "delivery_ratio": 1.0,
+          "delay_mean_s": 0.024479999999999995,
+          "delay_p95_s": 0.024479999999999995,
+          "delay_p99_s": 0.024479999999999995,
+          "drop_reasons": {},
+          "goodput_bps": 8000.0
+        }
+      ],
+      "first_udp_packet": {
+        "packet_id": 0,
+        "flow_id": 1,
+        "size_bytes": 1000,
+        "created_s": 0.01,
+        "ended_s": 0.03448,
+        "status": "delivered",
+        "reason": "-",
+        "path": [
+          "a",
+          "b",
+          "c"
+        ],
+        "delay_s": 0.024479999999999995
+      },
+      "link_transitions": 0,
+      "max_queue_packets": 1,
+      "cwnd_reductions": 0,
+      "result_sha256": "7c6c6564c4d23bdcec09ec81297f707777fb324a8c6849fdfcf1a833e0b04b91",
+      "source_sha256": {
+        "run_packet_scenario.py": "76c79ce31ab18ad5f18f4dd73dde66e2fe55c0ba646df955c75c7f6962a6139a",
+        "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+        "packet_backend/build.py": "491b663d9fd93a0780e09082681a08a76cee8dfa60e827ec985c6f3b75b3e0d5",
+        "packet_backend/controller.py": "116e5a9c5e2022d5bb4fda6d29f3e83bc1bb427654a19e6e8589c47338939e08",
+        "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+        "packet_backend/scenario.py": "100d2dc6efc44552d661dda80e859a6b38d31febd7d5b15f1e71c45e985f49fc",
+        "packet_backend/engine.cc": "3da9672a40693eeec32100fb575c2ea4947d266c992ff431dd6affb24581534b",
+        "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+        "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+        "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+        "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+        "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027"
+      },
+      "engine_wall_seconds": 0.02305665500171017,
+      "controller_wall_seconds": 3.0031995265744627e-05
+    },
+    "single_link": {
+      "scenario": "scenarios/phase2/single_link.json",
+      "flows": [
+        {
+          "flow_id": 1,
+          "protocol": "udp",
+          "src": "a",
+          "dst": "b",
+          "route_changes": 0,
+          "generated": 1,
+          "delivered": 1,
+          "dropped": 0,
+          "in_flight": 0,
+          "delivered_bytes": 1000,
+          "delivery_ratio": 1.0,
+          "delay_mean_s": 0.01324,
+          "delay_p95_s": 0.01324,
+          "delay_p99_s": 0.01324,
+          "drop_reasons": {},
+          "goodput_bps": 8000.0
+        }
+      ],
+      "first_udp_packet": {
+        "packet_id": 0,
+        "flow_id": 1,
+        "size_bytes": 1000,
+        "created_s": 0.01,
+        "ended_s": 0.02324,
+        "status": "delivered",
+        "reason": "-",
+        "path": [
+          "a",
+          "b"
+        ],
+        "delay_s": 0.01324
+      },
+      "link_transitions": 0,
+      "max_queue_packets": 1,
+      "cwnd_reductions": 0,
+      "result_sha256": "536a47c9b824182f87c64ee0dfba3b5464a6fa38d78e3436a2da4165ac09bc93",
+      "source_sha256": {
+        "run_packet_scenario.py": "76c79ce31ab18ad5f18f4dd73dde66e2fe55c0ba646df955c75c7f6962a6139a",
+        "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+        "packet_backend/build.py": "491b663d9fd93a0780e09082681a08a76cee8dfa60e827ec985c6f3b75b3e0d5",
+        "packet_backend/controller.py": "116e5a9c5e2022d5bb4fda6d29f3e83bc1bb427654a19e6e8589c47338939e08",
+        "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+        "packet_backend/scenario.py": "100d2dc6efc44552d661dda80e859a6b38d31febd7d5b15f1e71c45e985f49fc",
+        "packet_backend/engine.cc": "3da9672a40693eeec32100fb575c2ea4947d266c992ff431dd6affb24581534b",
+        "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+        "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+        "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+        "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+        "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027"
+      },
+      "engine_wall_seconds": 0.023220294009661302,
+      "controller_wall_seconds": 2.0602994482032955e-05
+    },
+    "tcp_reno_clean": {
+      "scenario": "scenarios/phase2/tcp_reno_clean.json",
+      "flows": [
+        {
+          "flow_id": 1,
+          "protocol": "tcp",
+          "src": "a",
+          "dst": "b",
+          "route_changes": 0,
+          "accepted_bytes": 100000,
+          "delivered_bytes": 100000,
+          "data_tx_segments": 100,
+          "retransmissions": 0,
+          "requested_bytes": 100000,
+          "unaccepted_bytes": 0,
+          "outstanding_bytes": 0,
+          "complete": true,
+          "congestion_control": "ns3::TcpLinuxReno",
+          "first_delivery_s": 0.034792,
+          "completion_s": 0.86956,
+          "completion_delay_s": 0.85956,
+          "goodput_bps": 80000.0
+        }
+      ],
+      "first_udp_packet": null,
+      "link_transitions": 0,
+      "max_queue_packets": 53,
+      "cwnd_reductions": 0,
+      "result_sha256": "9d88456b5bc9fafa167fe5044a9aee939d6c565a6199230b237bf47d31356adc",
+      "source_sha256": {
+        "run_packet_scenario.py": "76c79ce31ab18ad5f18f4dd73dde66e2fe55c0ba646df955c75c7f6962a6139a",
+        "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+        "packet_backend/build.py": "491b663d9fd93a0780e09082681a08a76cee8dfa60e827ec985c6f3b75b3e0d5",
+        "packet_backend/controller.py": "116e5a9c5e2022d5bb4fda6d29f3e83bc1bb427654a19e6e8589c47338939e08",
+        "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+        "packet_backend/scenario.py": "100d2dc6efc44552d661dda80e859a6b38d31febd7d5b15f1e71c45e985f49fc",
+        "packet_backend/engine.cc": "3da9672a40693eeec32100fb575c2ea4947d266c992ff431dd6affb24581534b",
+        "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+        "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+        "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+        "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+        "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027"
+      },
+      "engine_wall_seconds": 0.0263838570099324,
+      "controller_wall_seconds": 4.4907996198162436e-05
+    },
+    "tcp_reno_loss": {
+      "scenario": "scenarios/phase2/tcp_reno_loss.json",
+      "flows": [
+        {
+          "flow_id": 1,
+          "protocol": "tcp",
+          "src": "a",
+          "dst": "b",
+          "route_changes": 0,
+          "accepted_bytes": 100000,
+          "delivered_bytes": 100000,
+          "data_tx_segments": 124,
+          "retransmissions": 24,
+          "requested_bytes": 100000,
+          "unaccepted_bytes": 0,
+          "outstanding_bytes": 0,
+          "complete": true,
+          "congestion_control": "ns3::TcpLinuxReno",
+          "first_delivery_s": 0.034792,
+          "completion_s": 0.937288,
+          "completion_delay_s": 0.927288,
+          "goodput_bps": 80000.0
+        }
+      ],
+      "first_udp_packet": null,
+      "link_transitions": 0,
+      "max_queue_packets": 2,
+      "cwnd_reductions": 30,
+      "result_sha256": "ac70c23125e6e7d01ffebab71ae3ec961ab3790af9a39ebf994647be7831e917",
+      "source_sha256": {
+        "run_packet_scenario.py": "76c79ce31ab18ad5f18f4dd73dde66e2fe55c0ba646df955c75c7f6962a6139a",
+        "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+        "packet_backend/build.py": "491b663d9fd93a0780e09082681a08a76cee8dfa60e827ec985c6f3b75b3e0d5",
+        "packet_backend/controller.py": "116e5a9c5e2022d5bb4fda6d29f3e83bc1bb427654a19e6e8589c47338939e08",
+        "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+        "packet_backend/scenario.py": "100d2dc6efc44552d661dda80e859a6b38d31febd7d5b15f1e71c45e985f49fc",
+        "packet_backend/engine.cc": "3da9672a40693eeec32100fb575c2ea4947d266c992ff431dd6affb24581534b",
+        "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+        "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+        "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+        "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+        "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027"
+      },
+      "engine_wall_seconds": 0.02722482499666512,
+      "controller_wall_seconds": 2.283899812027812e-05
+    },
+    "tcp_reroute": {
+      "scenario": "scenarios/phase2/tcp_reroute.json",
+      "flows": [
+        {
+          "flow_id": 1,
+          "protocol": "tcp",
+          "src": "a",
+          "dst": "d",
+          "route_changes": 1,
+          "accepted_bytes": 100000,
+          "delivered_bytes": 100000,
+          "data_tx_segments": 111,
+          "retransmissions": 11,
+          "requested_bytes": 100000,
+          "unaccepted_bytes": 0,
+          "outstanding_bytes": 0,
+          "complete": true,
+          "congestion_control": "ns3::TcpLinuxReno",
+          "first_delivery_s": 0.035152,
+          "completion_s": 2.13424,
+          "completion_delay_s": 2.1242400000000004,
+          "goodput_bps": 80000.0
+        }
+      ],
+      "first_udp_packet": null,
+      "link_transitions": 2,
+      "max_queue_packets": 10,
+      "cwnd_reductions": 1,
+      "result_sha256": "b17d75946c1a58f8227e64a2c8fc068396593d2930f9cfd4bcc190bfe8371304",
+      "source_sha256": {
+        "run_packet_scenario.py": "76c79ce31ab18ad5f18f4dd73dde66e2fe55c0ba646df955c75c7f6962a6139a",
+        "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+        "packet_backend/build.py": "491b663d9fd93a0780e09082681a08a76cee8dfa60e827ec985c6f3b75b3e0d5",
+        "packet_backend/controller.py": "116e5a9c5e2022d5bb4fda6d29f3e83bc1bb427654a19e6e8589c47338939e08",
+        "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+        "packet_backend/scenario.py": "100d2dc6efc44552d661dda80e859a6b38d31febd7d5b15f1e71c45e985f49fc",
+        "packet_backend/engine.cc": "3da9672a40693eeec32100fb575c2ea4947d266c992ff431dd6affb24581534b",
+        "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+        "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+        "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+        "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+        "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027"
+      },
+      "engine_wall_seconds": 0.027435747004346922,
+      "controller_wall_seconds": 5.601400334853679e-05
+    }
+  },
+  "reno_arithmetic": {
+    "slow_start_cwnd_bytes": 11000,
+    "loss_ssthresh_bytes": 5000,
+    "avoidance_cwnd_bytes": 21000
+  }
+}
