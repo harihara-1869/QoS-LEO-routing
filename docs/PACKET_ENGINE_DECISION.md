@@ -1,5 +1,7 @@
 # Packet engine decision — Phase 1 compatibility exercise
 
+**Implementation follow-up, 30 October 2026:** The selected engine is now integrated through a compiled adapter. See [Phase 2 status](PHASE2_STATUS.md) and [the backend contract](PACKET_BACKEND.md). The material below preserves the original compatibility decision and its scope.
+
 Decision on 23 October 2026: use **modern ns-3 as the authoritative Phase 2 packet engine**, behind a small scenario/topology/results adapter. Keep Python/Skyfield for orbital state and controller orchestration. Do not extend the Python scheduler into a competing full packet engine. This selects an implementation direction; a complete dynamic backend is not yet integrated.
 
 ## What was tested

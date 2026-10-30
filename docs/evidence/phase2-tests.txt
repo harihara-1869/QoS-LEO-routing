@@ -1,0 +1,36 @@
+test_generation_conserves_rate_and_boundaries (test_foundation.FoundationTests.test_generation_conserves_rate_and_boundaries) ... ok
+test_occlusion_and_degenerate_points (test_foundation.FoundationTests.test_occlusion_and_degenerate_points) ... ok
+test_partial_final_interval (test_foundation.FoundationTests.test_partial_final_interval) ... ok
+test_plane_grouping_range_gate_and_ground_visibility (test_foundation.FoundationTests.test_plane_grouping_range_gate_and_ground_visibility) ... ok
+test_repeatability_and_route_accounting (test_foundation.FoundationTests.test_repeatability_and_route_accounting) ... ok
+test_scheduler_resume_ties_and_past (test_foundation.FoundationTests.test_scheduler_resume_ties_and_past) ... ok
+test_single_satellite_has_no_self_link (test_foundation.FoundationTests.test_single_satellite_has_no_self_link) ... ok
+test_zero_rate_and_fractional_accumulation (test_foundation.FoundationTests.test_zero_rate_and_fractional_accumulation) ... ok
+test_bottleneck_serializes_packets (test_packet_backend.PacketBackendTests.test_bottleneck_serializes_packets) ... ok
+test_down_drops_waiting_and_in_flight_even_after_restore (test_packet_backend.PacketBackendTests.test_down_drops_waiting_and_in_flight_even_after_restore) ... ok
+test_failed_rerun_cannot_leave_stale_success (test_packet_backend.PacketBackendTests.test_failed_rerun_cannot_leave_stale_success) ... ok
+test_feedback_receives_queue_and_can_change_route (test_packet_backend.PacketBackendTests.test_feedback_receives_queue_and_can_change_route) ... ok
+test_loop_action_rejected (test_packet_backend.PacketBackendTests.test_loop_action_rejected) ... ok
+test_orbital_topology_drives_packet_engine (test_packet_backend.PacketBackendTests.test_orbital_topology_drives_packet_engine) ... ok
+test_overflow_and_accounting (test_packet_backend.PacketBackendTests.test_overflow_and_accounting) ... ok
+test_reno_loss_retransmits_reduces_window_and_completes (test_packet_backend.PacketBackendTests.test_reno_loss_retransmits_reduces_window_and_completes) ... ok
+test_reno_reference_arithmetic (test_packet_backend.PacketBackendTests.test_reno_reference_arithmetic) ... ok
+test_reroute_uses_alternate_path (test_packet_backend.PacketBackendTests.test_reroute_uses_alternate_path) ... ok
+test_reset_and_repeatability (test_packet_backend.PacketBackendTests.test_reset_and_repeatability) ... ok
+test_short_path_and_hop_accounting (test_packet_backend.PacketBackendTests.test_short_path_and_hop_accounting) ... ok
+test_single_link_serialization_and_propagation (test_packet_backend.PacketBackendTests.test_single_link_serialization_and_propagation) ... ok
+test_tcp_recovers_across_route_change (test_packet_backend.PacketBackendTests.test_tcp_recovers_across_route_change) ... ok
+test_unreachable_and_horizon_are_distinct (test_packet_backend.PacketBackendTests.test_unreachable_and_horizon_are_distinct) ... ok
+test_zero_rate_and_ttl_expiration (test_packet_backend.PacketBackendTests.test_zero_rate_and_ttl_expiration) ... ok
+test_rejects_invalid_scenarios_before_backend (test_packet_backend.ScenarioValidationTests.test_rejects_invalid_scenarios_before_backend) ... ok
+
+----------------------------------------------------------------------
+Ran 25 tests in 4.971s
+
+OK
+Generated OMM CSV: /tmp/tmp5r_6puq1/out/constellation.csv (200 satellites)
+Generated OMM CSV: /tmp/tmpcd60peug/s.csv (100 satellites)
+Generated OMM CSV: /tmp/tmp8e9e_x1u/a/constellation.csv (200 satellites)
+Generated OMM CSV: /tmp/tmp8e9e_x1u/b/constellation.csv (200 satellites)
+Generated OMM CSV: /tmp/tmp4gbte1vz/s.csv (1 satellites)
+Generated OMM CSV: /tmp/tmp5ebvpdmr/constellation.csv (200 satellites)

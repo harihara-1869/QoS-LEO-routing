@@ -1,6 +1,36 @@
 # LEO routing simulator
 
-Phase 1 provides a repeatable orbital topology and distance-weighted Dijkstra baseline. It records **route feasibility**, not packet delivery: queues, forwarding, handovers and transport validation are Phase 2 work. There is no trained RL controller.
+Phase 2 adds a compiled ns-3 packet backend with dynamic topology, bounded queues, UDP delivery/drop records, runtime route updates and validated TCP Linux Reno cases. The original Phase 1 headless runner remains available for route feasibility. QoS classes and learned routing are later phases.
+
+## Phase 2 packet simulation
+
+Run from the repository root. The compiled adapter requires a C++20-capable `g++` and the pinned ns-3 Linux wheel; Python 3.12 / Linux x86_64 was tested. Keep the orbital and ns-3 dependencies in separate virtual environments.
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+python3 -m venv .venv-ns3
+.venv-ns3/bin/pip install -r requirements-ns3.txt
+.venv/bin/python run_packet_scenario.py
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+The first packet run compiles `packet_backend/engine.cc` into an ignored `runs/build/` cache. Later runs reuse that binary. It links ns-3 directly and does not run the Cppyy interpreter. Use `--ns3-python /path/to/environment/bin/python` or `LEO_NS3_PYTHON` for a different ns-3 environment.
+
+Examples:
+
+```bash
+.venv/bin/python run_packet_scenario.py --scenario scenarios/phase2/disappearing_link.json --output runs/link-failure
+.venv/bin/python run_packet_scenario.py --scenario scenarios/phase2/tcp_reno_loss.json --output runs/reno-loss
+.venv/bin/python run_packet_scenario.py --scenario scenarios/phase2/orbital_transition.json --output runs/orbital-transition
+.venv/bin/python -m tools.record_phase2_evidence
+```
+
+`scenarios/packet_baseline.json` runs the 200-satellite baseline through the actual packet engine. Explicit small graph fixtures in `scenarios/phase2/` isolate serialization, propagation, congestion, failures and rerouting. The orbital-transition example spans 120 simulated seconds and exercises natural topology changes.
+
+Each output directory contains `results.json` (metrics, UDP outcomes, events and routes), `manifest.json` (versions/source hashes and result hash), `prepared.json` / `engine.plan` (exported topology/workload), `control.json` (live observations/actions), raw TSV logs and `engine.stderr`. `status.json` identifies complete/failed runs. Reusing an output directory overwrites generated results; failed reruns remove prior success files. Tests skip the packet integration cases if the ns-3 environment or compiler is absent; a full Phase 2 validation requires those cases to run.
+
+See [Phase 2 behavior, acceptance evidence and limits](docs/PHASE2_STATUS.md) and [the scenario/controller contract](docs/PACKET_BACKEND.md). Packet accounting distinguishes explicit drops from packets still in flight at the horizon. TCP results report byte delivery and retransmissions separately from UDP datagrams.
 
 ## Headless baseline
 
@@ -34,7 +64,7 @@ Repeat the command with another output directory to compare result hashes. Resul
 
 `test.py` is the inherited interactive viewer (despite its filename), not a test suite. It shares `LogicalTopology` with headless runs, and uses the existing `customconstellation.csv`, up to 100 satellites and six default stations. It displays live wall-clock orbital time; the headless runner is authoritative for saved experiments. `opengl_sim.py` redirects to the same viewer using `starlink.csv`. A working OpenGL display is required; interactive rendering was not validated in this headless session.
 
-## Established packet-engine exercise
+## Historical Phase 1 packet-engine exercise
 
 Keep ns-3 in a separate virtual environment; ns-3 owns all packet timing in this probe.
 
@@ -44,4 +74,4 @@ python3 -m venv /tmp/leo-ns3-venv
 /tmp/leo-ns3-venv/bin/python tools/probe_ns3.py --baseline runs/baseline/results.json
 ```
 
-See [the backend decision and evidence](docs/PACKET_ENGINE_DECISION.md), [Phase 1 status and assumptions](docs/PHASE1_STATUS.md), and [the research gap matrix](docs/RESEARCH_GAPS.md). The original [phased plan](LEO_Routing_Phased_Implementation_Plan.md) remains the roadmap. No A*/Bellman-Ford benchmark is implemented.
+See [the backend decision and evidence](docs/PACKET_ENGINE_DECISION.md), [Phase 1 status and assumptions](docs/PHASE1_STATUS.md), and [the research gap matrix](docs/RESEARCH_GAPS.md). The original [phased plan](LEO_Routing_Phased_Implementation_Plan.md) remains the roadmap; the Phase 2 implementation supersedes the probe-only status in the historical decision record. No A*/Bellman-Ford benchmark is implemented.

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "epoch": "2025-01-01T00:00:00+00:00",
+  "seed": 7,
+  "duration_s": 120,
+  "step_s": 10,
+  "constellation": {
+    "n_planes": 10,
+    "sats_per_plane": 20,
+    "inclination": 53,
+    "altitude_km": 550
+  },
+  "links": {
+    "isl_max_km": 5000,
+    "min_elev_deg": 5,
+    "iol_cone_deg": 60,
+    "enable_iol": false
+  },
+  "ground_stations": [
+    [
+      "GS_INDIA",
+      28.6139,
+      77.209,
+      0
+    ],
+    [
+      "GS_AUSTRALIA",
+      -33.8688,
+      151.2093,
+      0
+    ]
+  ],
+  "flows": [
+    {
+      "flow_id": 1,
+      "src": "GS_INDIA",
+      "dst": "GS_AUSTRALIA",
+      "start_time": 0,
+      "end_time": 100,
+      "data_rate_bps": 24000,
+      "packet_size_bytes": 1500,
+      "flow_type": "BULK"
+    }
+  ],
+  "network": {
+    "capacity_bps": 10000000,
+    "queue_packets": 100,
+    "mtu_bytes": 9000,
+    "ttl": 32
+  }
+}

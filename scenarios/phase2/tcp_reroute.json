@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "seed": 7,
+  "duration_s": 10,
+  "network": {
+    "capacity_bps": 1000000,
+    "queue_packets": 100
+  },
+  "topology": {
+    "nodes": [
+      "a",
+      "b",
+      "c",
+      "d"
+    ],
+    "snapshots": [
+      {
+        "time_s": 0,
+        "links": [
+          {
+            "a": "a",
+            "b": "b",
+            "delay_s": 0.001
+          },
+          {
+            "a": "b",
+            "b": "d",
+            "delay_s": 0.001
+          },
+          {
+            "a": "a",
+            "b": "c",
+            "delay_s": 0.003
+          },
+          {
+            "a": "c",
+            "b": "d",
+            "delay_s": 0.003
+          }
+        ]
+      },
+      {
+        "time_s": 0.04,
+        "links": [
+          {
+            "a": "a",
+            "b": "c",
+            "delay_s": 0.003
+          },
+          {
+            "a": "c",
+            "b": "d",
+            "delay_s": 0.003
+          }
+        ]
+      }
+    ]
+  },
+  "flows": [
+    {
+      "flow_id": 1,
+      "src": "a",
+      "dst": "d",
+      "protocol": "tcp",
+      "start_time": 0.01,
+      "end_time": 9.9,
+      "packet_size_bytes": 1000,
+      "max_bytes": 100000
+    }
+  ]
+}
