@@ -1,4 +1,6 @@
-# Phase 2 packet-backend contract
+# Packet-backend contract (Phases 2–3)
+
+Phase 3 extensions are specified in [QoS configuration and metric semantics](PHASE3_STATUS.md). Omitting `qos` preserves FIFO; enabling it selects class queues and result schema 3.
 
 The Python runner prepares topology/workloads, the compiled ns-3 process owns all packet events, and Python returns routing decisions when that process requests an observation. `schedule_core.py` does not advance packets in this mode. The Phase 1 `SimulationManager` is reused only to generate orbital snapshots before the packet run.
 
@@ -51,13 +53,13 @@ A policy receives a dictionary containing only current information:
 
 It returns `{(source_node_id, destination_node_id): next_hop_node_id}`. The default policy is propagation-weighted Dijkstra with stable tie breaking. Every installed chain must reach its destination over currently available links; unknown endpoints, unavailable links, cycles and dead ends fail the run. Omitting routes is permitted and produces unreachable outcomes. All actions for one observation are applied within one ns-3 event before packet execution resumes.
 
-The callback receives no future snapshots or realised traffic. `control.json` records each observation/action. This Phase 2 routing table is destination-based; Phase 3 owns any class/flow-specific extension and QoS scheduling. The interface establishes live feedback, not PPO throughput guarantees. Wall-time measurements are recorded separately in the manifest and excluded from the deterministic result hash.
+The callback receives no future snapshots or realised traffic. `control.json` records each observation/action. The routing table remains destination-based. Phase 3 adds per-class queue observations and scheduling, the congestion policy, and optional control ticks; class/flow-specific routing is a future contract extension. The interface establishes live feedback, not PPO throughput guarantees. Wall-time measurements are recorded separately in the manifest and excluded from the deterministic result hash.
 
 ## Results and accounting
 
 `results.json` uses `schema_version: 2` and `mode: "packet_simulation"`. `prepared.json` identifies the node/link mapping and topology schedule. The original input scenario is preserved. `manifest.json` stores the result SHA-256, source hashes, Git state, dependency versions, executable hash, policy identifier and wall times. Store custom policy source/configuration alongside the run when supplying a callback.
 
-UDP has one terminal record per generated datagram: ID, flow, payload size, creation/end times, status/reason, actual named hop path and delivery delay when delivered. For every flow: generated = delivered + dropped + in-flight. Mean/p95/p99 delay uses delivered datagrams; delivery ratio includes all generated datagrams. `goodput_bps` uses unique application bytes divided by the **entire run duration**, including idle/drain time. Deadline and class metrics are Phase 3 work.
+UDP has one terminal record per generated datagram: ID, flow, payload size, creation/end times, status/reason, actual named hop path and delivery delay when delivered. For every flow: generated = delivered + dropped + in-flight. Mean/p95/p99 delay uses delivered datagrams; delivery ratio includes all generated datagrams. `goodput_bps` uses unique application bytes divided by the **entire run duration**, including idle/drain time. QoS runs add the deadline/class metrics defined in the Phase 3 contract.
 
 TCP is a byte stream: report requested, accepted, delivered, unaccepted and outstanding bytes, completion time, transmitted data segments and retransmission segments. Retransmissions are detected by repeated TCP sequence ranges; the bounded transfers are below sequence-number wrap. ACKs and retransmissions consume network resources but are not additional application deliveries. Incomplete streams are not silently counted as lost application packets. The congestion-window/threshold and receive traces distinguish transport recovery from route changes.
 

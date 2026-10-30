@@ -1,6 +1,6 @@
 # LEO routing simulator
 
-Phase 2 adds a compiled ns-3 packet backend with dynamic topology, bounded queues, UDP delivery/drop records, runtime route updates and validated TCP Linux Reno cases. The original Phase 1 headless runner remains available for route feasibility. QoS classes and learned routing are later phases.
+Phase 2 adds a compiled ns-3 packet backend with dynamic topology, bounded queues, UDP delivery/drop records, runtime route updates and validated TCP Linux Reno cases. The original Phase 1 headless runner remains available for route feasibility. Phase 3 adds Control/Realtime/Bulk scheduling, deadline/fairness metrics and matched conventional routing comparisons. Predictive and learned routing are later phases.
 
 ## Container setup (Windows and macOS)
 
@@ -18,9 +18,16 @@ Start an interactive shell with the repository mounted at `/workspace`:
 docker run --rm -it --platform linux/amd64 -v "$PWD":/workspace -w /workspace leo-sim
 ```
 
+For Windows PowerShell, the mount command is:
+
+```powershell
+docker run --rm -it --platform linux/amd64 --mount "type=bind,source=$($PWD.Path),target=/workspace" -w /workspace leo-sim
+```
+
 Inside the container the two virtual environments from the native instructions already exist, so there is no dependency installation step. Use `/opt/leo-venv/bin/python` for the orbital runner and tests, and leave ns-3 to `/opt/leo-ns3-venv` (the image sets `LEO_NS3_PYTHON`):
 
 ```bash
+/opt/leo-venv/bin/python compare_policies.py --case all --output runs/phase3
 /opt/leo-venv/bin/python run_packet_scenario.py --scenario scenarios/packet_baseline.json --output runs/packet-baseline
 /opt/leo-venv/bin/python -m unittest discover -s tests -v
 /opt/leo-venv/bin/python run_scenario.py --scenario scenarios/baseline.json --output runs/baseline
@@ -28,10 +35,10 @@ Inside the container the two virtual environments from the native instructions a
 
 Notes:
 
-- On Apple Silicon the image runs as `linux/amd64` under emulation. It works but is slower; always pass `--platform linux/amd64` so pip finds the ns-3 wheel.
+- On Apple Silicon the image runs as `linux/amd64` under emulation. Emulation can be slower; always pass `--platform linux/amd64` so pip finds the ns-3 wheel.
 - Files written to `runs/` belong to the container user. On Linux hosts add `--user "$(id -u):$(id -g)"` to keep host ownership.
 - The OpenGL viewer needs a display, so it is not available in the container by default. Run `test.py` natively with `requirements-viz.txt` if you need it.
-- Windows users can alternatively use WSL2 with Ubuntu 24.04. The native commands below then work unchanged, apart from the `.venv/bin` path.
+- Windows users can alternatively use WSL2 with Ubuntu 24.04. The native commands below then work unchanged, including the Linux `.venv/bin` paths.
 
 ## Phase 2 packet simulation
 
@@ -62,6 +69,18 @@ Examples:
 Each output directory contains `results.json` (metrics, UDP outcomes, events and routes), `manifest.json` (versions/source hashes and result hash), `prepared.json` / `engine.plan` (exported topology/workload), `control.json` (live observations/actions), raw TSV logs and `engine.stderr`. `status.json` identifies complete/failed runs. Reusing an output directory overwrites generated results; failed reruns remove prior success files. Tests skip the packet integration cases if the ns-3 environment or compiler is absent; a full Phase 2 validation requires those cases to run.
 
 See [Phase 2 behavior, acceptance evidence and limits](docs/PHASE2_STATUS.md) and [the scenario/controller contract](docs/PACKET_BACKEND.md). Packet accounting distinguishes explicit drops from packets still in flight at the horizon. TCP results report byte delivery and retransmissions separately from UDP datagrams.
+
+## Phase 3 QoS and routing comparisons
+
+Use the same environments or Docker image as above. No new dependencies are required.
+
+```bash
+.venv/bin/python compare_policies.py --case all --seed 7 --output runs/phase3
+.venv/bin/python run_packet_scenario.py --scenario scenarios/phase3/burst.json --policy congestion --output runs/burst
+.venv/bin/python -m tools.record_phase3_evidence
+```
+
+`qos: {}` enables weighted byte DRR for Control, Realtime (including STREAMING) and Bulk. Omit it to retain FIFO. The five seeded workloads run with both propagation and congestion-aware Dijkstra using identical scheduling and traffic. Reports include deadline outcomes, class delay/goodput, Bulk fairness/service gaps and route changes. See [Phase 3 status, configuration, measured tradeoffs and Docker validation](docs/PHASE3_STATUS.md). These synthetic smoke comparisons are not the final calibrated research evaluation.
 
 ## Headless baseline
 

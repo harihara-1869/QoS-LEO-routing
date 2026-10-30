@@ -8,13 +8,16 @@ from threading import Thread
 import time
 
 
-def shortest_routes(observation: dict) -> dict[tuple[int, int], int]:
-    """Propagation-weighted routing, with stable numeric tie breaking."""
-    adjacency = [[] for _ in observation['nodes']]
+def _dijkstra(observation, congestion=False):
+    # Reverse adjacency: cost stored at b is the cost of the directed a -> b edge.
+    reverse = [[] for _ in observation['nodes']]
+    queues = {(q['link_id'], q['direction']): q['bytes'] for q in observation['queues']}
     for edge in observation['links']:
         a, b, delay = edge['a'], edge['b'], edge['delay_s']
-        adjacency[a].append((b, delay))
-        adjacency[b].append((a, delay))
+        forward = delay + (queues.get((edge['id'], 0), 0)*8/edge['capacity_bps'] if congestion else 0)
+        backward = delay + (queues.get((edge['id'], 1), 0)*8/edge['capacity_bps'] if congestion else 0)
+        reverse[b].append((a, forward))
+        reverse[a].append((b, backward))
     routes = {}
     for destination in observation['destinations']:
         distance = {destination: 0.0}
@@ -23,13 +26,34 @@ def shortest_routes(observation: dict) -> dict[tuple[int, int], int]:
             cost, node = heapq.heappop(pending)
             if cost != distance[node]:
                 continue
-            for neighbor, delay in sorted(adjacency[node]):
-                candidate = cost + delay
+            for neighbor, edge_cost in sorted(reverse[node]):
+                candidate = cost + edge_cost
                 if candidate < distance.get(neighbor, float('inf')):
                     distance[neighbor] = candidate
                     routes[neighbor, destination] = node
                     heapq.heappush(pending, (candidate, neighbor))
     return routes
+
+
+def shortest_routes(observation: dict) -> dict[tuple[int, int], int]:
+    """Propagation-weighted Dijkstra with stable tie breaking."""
+    return _dijkstra(observation)
+
+
+def congestion_routes(observation: dict) -> dict[tuple[int, int], int]:
+    """Current propagation + directed queued wire bytes / link capacity."""
+    return _dijkstra(observation, congestion=True)
+
+
+POLICIES = {'propagation': shortest_routes, 'congestion': congestion_routes}
+
+
+def resolve_policy(policy):
+    if callable(policy):
+        return policy
+    if policy not in POLICIES:
+        raise ValueError(f'Unknown routing policy: {policy}')
+    return POLICIES[policy]
 
 
 def validate_routes(routes: dict, observation: dict) -> None:
@@ -83,13 +107,20 @@ def execute(binary: Path, plan: dict, output: Path, policy=shortest_routes, time
                     raise RuntimeError('Engine queue observation count mismatch')
                 queues = []
                 for _ in range(int(header[2])):
-                    link, direction, packets, size = map(int, read().split())
-                    queues.append({'link_id':link,'direction':direction,'packets':packets,'bytes':size})
+                    row = list(map(int, read().split()))
+                    link, direction, packets, size = row[:4]
+                    queue = {'link_id':link,'direction':direction,'packets':packets,'bytes':size}
+                    if plan['qos']:
+                        if len(row) != 10:
+                            raise RuntimeError('Missing class queue observation')
+                        queue['classes'] = {name: {'packets':row[4+2*i], 'bytes':row[5+2*i]}
+                                            for i, name in enumerate(('CONTROL','REALTIME','BULK'))}
+                    queues.append(queue)
                 if read()!='END':
                     raise RuntimeError('Invalid observation terminator')
                 links = [{**plan['links'][edge['id']], 'delay_s':edge['delay_s']} for edge in snapshot['links']]
                 observation = {'time_s':float(header[1]), 'nodes':list(plan['nodes']), 'links':links,
-                               'queues':queues, 'destinations':destinations}
+                               'queues':queues, 'destinations':destinations, 'qos':plan['qos']}
                 start = time.perf_counter()
                 routes = policy(observation)
                 validate_routes(routes, observation)

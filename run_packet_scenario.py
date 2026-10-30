@@ -1,4 +1,4 @@
-"""Run Phase 2 packet simulation with the compiled ns-3 backend."""
+"""Run packet simulation with the compiled ns-3 backend."""
 import argparse
 import hashlib
 import importlib.metadata
@@ -8,12 +8,13 @@ import subprocess
 import time
 
 from packet_backend.build import ROOT, build_engine
-from packet_backend.controller import execute, shortest_routes
+from packet_backend.controller import execute, shortest_routes, resolve_policy
 from packet_backend.results import summarize
 from packet_backend.scenario import prepare
 
 
 def _run(scenario, output, *, ns3_python=None, policy=shortest_routes, timeout_s=120):
+    policy = resolve_policy(policy)
     config = json.loads(Path(scenario).read_text()) if not isinstance(scenario, dict) else scenario
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -23,11 +24,17 @@ def _run(scenario, output, *, ns3_python=None, policy=shortest_routes, timeout_s
     control = execute(binary, plan, output, policy, timeout_s)
     elapsed = time.perf_counter()-start
     result = summarize(plan,output,control)
+    if plan['qos']:
+        from packet_backend.qos_metrics import summarize_qos
+        result['schema_version'] = 3
+        result['qos'] = summarize_qos(plan, result)
+        result['assumptions']['queue'] = 'Weighted byte DRR; reserved per-class packet limits; non-preemptive; TCP and ACKs are Bulk'
+    result['routing_policy'] = f'{policy.__module__}.{policy.__qualname__}'
     encoded = json.dumps(result,sort_keys=True,indent=2,allow_nan=False)+'\n'
     (output/'results.json').write_text(encoded)
     sources = [Path(__file__).resolve(), *sorted((ROOT/'packet_backend').glob('*.py')),
-               ROOT/'packet_backend/engine.cc', ROOT/'logic_module.py', ROOT/'setup.py',ROOT/'sim_man.py',
-               ROOT/'requirements.txt', ROOT/'requirements-ns3.txt']
+               ROOT/'packet_backend/engine.cc', *sorted((ROOT/'packet_backend').glob('*.h')), ROOT/'logic_module.py', ROOT/'setup.py',ROOT/'sim_man.py',
+               ROOT/'requirements.txt', ROOT/'requirements-ns3.txt', ROOT/'compare_policies.py']
     revision = subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,capture_output=True,text=True).stdout.strip()
     dirty = bool(subprocess.run(['git','status','--porcelain'],cwd=ROOT,capture_output=True,text=True).stdout)
     manifest = {'result_sha256':hashlib.sha256(encoded.encode()).hexdigest(), 'git_revision':revision,
@@ -61,6 +68,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--scenario',default='scenarios/packet_baseline.json')
     parser.add_argument('--output',default='runs/packet-baseline')
+    parser.add_argument('--policy', choices=('propagation','congestion'), default='propagation')
     parser.add_argument('--ns3-python',help='Python executable in the pinned ns-3 environment')
     args = parser.parse_args()
-    print(json.dumps(run(args.scenario,args.output,ns3_python=args.ns3_python)['flows'],indent=2))
+    print(json.dumps(run(args.scenario,args.output,ns3_python=args.ns3_python,policy=args.policy)['flows'],indent=2))

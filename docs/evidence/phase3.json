@@ -1,0 +1,813 @@
+{
+  "schema_version": 1,
+  "seed": 7,
+  "ns3": "3.44.post0",
+  "dependencies": {
+    "numpy": "2.3.5",
+    "skyfield": "1.53",
+    "sgp4": "2.25",
+    "igraph": "0.11.9"
+  },
+  "source_sha256": {
+    "run_packet_scenario.py": "e8bbd7774d872f69fe659836136af26e96b7b98fc76a1aadb30fb2e685439ade",
+    "packet_backend/__init__.py": "5759f1a250d126743adbd213897f4797dafaac3e62381b33ae70deec5b929951",
+    "packet_backend/build.py": "c9cca3af9ba6166074d5b132ea2f41411d7ae17f44dedd1a3d240a07f11c5d27",
+    "packet_backend/controller.py": "6619b4c07215e06b43176e7ef9fec1b402653c6fca693cc716e80d00d37946b7",
+    "packet_backend/qos.py": "5a27845d060f09c875f0f5f03304141515012a6098bda736b37ce081b6074ab9",
+    "packet_backend/qos_metrics.py": "33b006f16fe26c145f9632c9660ed66110e1a0acc296682a474e3b5e4b494bc3",
+    "packet_backend/results.py": "8fe7ecf845692c1e9dff6a6e98217e29e28443d90b247b6d924f4580f54edc29",
+    "packet_backend/scenario.py": "36daeaf4740aec101bea088fbbaadf0cd593cfb5a01083d1b6600438306c8d3d",
+    "packet_backend/workloads.py": "0168a3c043e0bf4fe7c6b7ee15f0f4ce21b6f9c697a9caa587aaf3bba04063e5",
+    "packet_backend/engine.cc": "4c26df1eff97f216ec6093c2e88839fe61c0885d42dfcbde896afa35e5c1f2e1",
+    "packet_backend/qos_queue.h": "5f323ac74aba49c51f30a0cd20b3ed2081944141dce88354f62417362f00a48a",
+    "logic_module.py": "1747def917a495964061bd94a9ad62f027bbee8f865e4eab5f5814c82c79372f",
+    "setup.py": "396febf41d1266e755c75b3f17d46260a6ad44cfeab8882ec4963d816221d4f1",
+    "sim_man.py": "d2f1b4665bb7ec17a3be3ea1d3af6df8575069acbe3547079a97ac17481f2ec6",
+    "requirements.txt": "1568fd72acd83e6648be281dfe83bdae8bddd9fdff34c02a3f606d142d2c05a3",
+    "requirements-ns3.txt": "d0335415440685a5bd4d7d8f2afb1b44613bb246df7785fadb9959d81d8e0027",
+    "compare_policies.py": "a917af286d3e75982afb4fd04e4c2156fceaf6a77ec9c8c25c89a7feee9fa68b"
+  },
+  "note": "Controlled synthetic smoke cases, not calibrated research results; all policies share scheduler/traffic/topology.",
+  "runs": [
+    {
+      "case": "low",
+      "policy": "propagation",
+      "scenario_sha256": "d35bb93ff240ee886a9cc3fe572a8f730bebc14db852b62ac115b754c009609d",
+      "result_sha256": "210f0aa85f42f748e5b625331c920161e887e191151b420fe783a246199c6a90",
+      "classes": {
+        "BULK": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 0,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 0,
+            "success_ratio": null
+          },
+          "delay_p95_s": 0.02961179999999999,
+          "delay_p99_s": 0.02967500000000009,
+          "delivered_bytes": 26400,
+          "flow_count": 2,
+          "goodput_bps": 52800.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 22,
+          "udp_dropped": 0,
+          "udp_generated": 22,
+          "udp_in_flight": 0
+        },
+        "CONTROL": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 27,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 27,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.014831000000000039,
+          "delay_p99_s": 0.014831000000000039,
+          "delivered_bytes": 3456,
+          "flow_count": 1,
+          "goodput_bps": 6912.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 27,
+          "udp_dropped": 0,
+          "udp_generated": 27,
+          "udp_in_flight": 0
+        },
+        "REALTIME": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 17,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 17,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.022336000000000033,
+          "delay_p99_s": 0.022336000000000113,
+          "delivered_bytes": 13600,
+          "flow_count": 1,
+          "goodput_bps": 27200.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 17,
+          "udp_dropped": 0,
+          "udp_generated": 17,
+          "udp_in_flight": 0
+        }
+      },
+      "bulk_jain_active_goodput": 0.9999998188071323,
+      "bulk_service": {
+        "max_backlogged_service_gap_s": 0.014851000000000003,
+        "starvation_intervals": [],
+        "threshold_s": 0.25
+      },
+      "route_changes": 0
+    },
+    {
+      "case": "low",
+      "policy": "congestion",
+      "scenario_sha256": "d35bb93ff240ee886a9cc3fe572a8f730bebc14db852b62ac115b754c009609d",
+      "result_sha256": "09672c25befcb03f6d44a2c0104aace592f7b6bca216da2f56b595811d9360ae",
+      "classes": {
+        "BULK": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 0,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 0,
+            "success_ratio": null
+          },
+          "delay_p95_s": 0.02961179999999999,
+          "delay_p99_s": 0.02967500000000009,
+          "delivered_bytes": 26400,
+          "flow_count": 2,
+          "goodput_bps": 52800.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 22,
+          "udp_dropped": 0,
+          "udp_generated": 22,
+          "udp_in_flight": 0
+        },
+        "CONTROL": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 27,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 27,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.014831000000000039,
+          "delay_p99_s": 0.014831000000000039,
+          "delivered_bytes": 3456,
+          "flow_count": 1,
+          "goodput_bps": 6912.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 27,
+          "udp_dropped": 0,
+          "udp_generated": 27,
+          "udp_in_flight": 0
+        },
+        "REALTIME": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 17,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 17,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.022336000000000033,
+          "delay_p99_s": 0.022336000000000113,
+          "delivered_bytes": 13600,
+          "flow_count": 1,
+          "goodput_bps": 27200.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 17,
+          "udp_dropped": 0,
+          "udp_generated": 17,
+          "udp_in_flight": 0
+        }
+      },
+      "bulk_jain_active_goodput": 0.9999998188071323,
+      "bulk_service": {
+        "max_backlogged_service_gap_s": 0.014851000000000003,
+        "starvation_intervals": [],
+        "threshold_s": 0.25
+      },
+      "route_changes": 0
+    },
+    {
+      "case": "normal",
+      "policy": "propagation",
+      "scenario_sha256": "b2d1cd7914df32790473f3125ca99a25c2d81f44b2a8daa45e9ed60ff3115c52",
+      "result_sha256": "1fb2b0df5c5a14b8e5592ddb2e7c64e872f23339dcae90cb760c54c479c1d2b9",
+      "classes": {
+        "BULK": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 0,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 0,
+            "success_ratio": null
+          },
+          "delay_p95_s": 0.029675000000000118,
+          "delay_p99_s": 0.029675000000000118,
+          "delivered_bytes": 192000,
+          "flow_count": 2,
+          "goodput_bps": 384000.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 160,
+          "udp_dropped": 0,
+          "udp_generated": 160,
+          "udp_in_flight": 0
+        },
+        "CONTROL": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 200,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 200,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.015508333000000096,
+          "delay_p99_s": 0.015508334000000179,
+          "delivered_bytes": 25600,
+          "flow_count": 1,
+          "goodput_bps": 51200.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 200,
+          "udp_dropped": 0,
+          "udp_generated": 200,
+          "udp_in_flight": 0
+        },
+        "REALTIME": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 128,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 128,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.022336000000000023,
+          "delay_p99_s": 0.022336000000000134,
+          "delivered_bytes": 102400,
+          "flow_count": 1,
+          "goodput_bps": 204800.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 128,
+          "udp_dropped": 0,
+          "udp_generated": 128,
+          "udp_in_flight": 0
+        }
+      },
+      "bulk_jain_active_goodput": 0.9999998188071324,
+      "bulk_service": {
+        "max_backlogged_service_gap_s": 0.01485100000000017,
+        "starvation_intervals": [],
+        "threshold_s": 0.25
+      },
+      "route_changes": 0
+    },
+    {
+      "case": "normal",
+      "policy": "congestion",
+      "scenario_sha256": "b2d1cd7914df32790473f3125ca99a25c2d81f44b2a8daa45e9ed60ff3115c52",
+      "result_sha256": "95165efbc4fcfcaf77d7ac513b5d98ef72ed1e0dfc9f95f889184f3679cf6621",
+      "classes": {
+        "BULK": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 0,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 0,
+            "success_ratio": null
+          },
+          "delay_p95_s": 0.030823999999999963,
+          "delay_p99_s": 0.03903500000000009,
+          "delivered_bytes": 192000,
+          "flow_count": 2,
+          "goodput_bps": 384000.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 160,
+          "udp_dropped": 0,
+          "udp_generated": 160,
+          "udp_in_flight": 0
+        },
+        "CONTROL": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 200,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 200,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.02139040000000003,
+          "delay_p99_s": 0.030831000000000053,
+          "delivered_bytes": 25600,
+          "flow_count": 1,
+          "goodput_bps": 51200.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 200,
+          "udp_dropped": 0,
+          "udp_generated": 200,
+          "udp_in_flight": 0
+        },
+        "REALTIME": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 128,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 128,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.027303999999999995,
+          "delay_p99_s": 0.032631999999999994,
+          "delivered_bytes": 102400,
+          "flow_count": 1,
+          "goodput_bps": 204800.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 128,
+          "udp_dropped": 0,
+          "udp_generated": 128,
+          "udp_in_flight": 0
+        }
+      },
+      "bulk_jain_active_goodput": 0.9999998188071324,
+      "bulk_service": {
+        "max_backlogged_service_gap_s": 0.01485100000000017,
+        "starvation_intervals": [],
+        "threshold_s": 0.25
+      },
+      "route_changes": 32
+    },
+    {
+      "case": "burst",
+      "policy": "propagation",
+      "scenario_sha256": "4384b9038b66266f2b828cd20782e2454d8f5758968d72bbd0f8ec5c1cc408e6",
+      "result_sha256": "a474ecef305c73e0a5d233e930c029412630202e5e218f18020a3895d8529100",
+      "classes": {
+        "BULK": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 0,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 0,
+            "success_ratio": null
+          },
+          "delay_p95_s": 0.21430836000000003,
+          "delay_p99_s": 0.229444008,
+          "delivered_bytes": 129600,
+          "flow_count": 2,
+          "goodput_bps": 259200.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 108,
+          "udp_dropped": 0,
+          "udp_generated": 108,
+          "udp_in_flight": 0
+        },
+        "CONTROL": {
+          "deadline": {
+            "dropped": 231,
+            "late": 120,
+            "on_time": 268,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 619,
+            "success_ratio": 0.43295638126009695
+          },
+          "delay_p95_s": 0.06662498999999998,
+          "delay_p99_s": 0.06700552200000018,
+          "delivered_bytes": 49664,
+          "flow_count": 3,
+          "goodput_bps": 99328.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 388,
+          "udp_dropped": 231,
+          "udp_generated": 619,
+          "udp_in_flight": 0
+        },
+        "REALTIME": {
+          "deadline": {
+            "dropped": 70,
+            "late": 62,
+            "on_time": 70,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 202,
+            "success_ratio": 0.3465346534653465
+          },
+          "delay_p95_s": 0.3055821029999998,
+          "delay_p99_s": 0.3231564337699999,
+          "delivered_bytes": 105600,
+          "flow_count": 3,
+          "goodput_bps": 211200.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 132,
+          "udp_dropped": 70,
+          "udp_generated": 202,
+          "udp_in_flight": 0
+        }
+      },
+      "bulk_jain_active_goodput": 0.9999998188071321,
+      "bulk_service": {
+        "max_backlogged_service_gap_s": 0.08443200000000006,
+        "starvation_intervals": [],
+        "threshold_s": 0.25
+      },
+      "route_changes": 0
+    },
+    {
+      "case": "burst",
+      "policy": "congestion",
+      "scenario_sha256": "4384b9038b66266f2b828cd20782e2454d8f5758968d72bbd0f8ec5c1cc408e6",
+      "result_sha256": "e017009011b918cde4c59d338e4739481f5e308d13e06375dac7abc63e7a9b47",
+      "classes": {
+        "BULK": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 0,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 0,
+            "success_ratio": null
+          },
+          "delay_p95_s": 0.11518060000000004,
+          "delay_p99_s": 0.15139575999999952,
+          "delivered_bytes": 129600,
+          "flow_count": 2,
+          "goodput_bps": 259200.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 108,
+          "udp_dropped": 0,
+          "udp_generated": 108,
+          "udp_in_flight": 0
+        },
+        "CONTROL": {
+          "deadline": {
+            "dropped": 87,
+            "late": 69,
+            "on_time": 463,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 619,
+            "success_ratio": 0.7479806138933764
+          },
+          "delay_p95_s": 0.05802299999999994,
+          "delay_p99_s": 0.07341759999999954,
+          "delivered_bytes": 68096,
+          "flow_count": 3,
+          "goodput_bps": 136192.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 532,
+          "udp_dropped": 87,
+          "udp_generated": 619,
+          "udp_in_flight": 0
+        },
+        "REALTIME": {
+          "deadline": {
+            "dropped": 17,
+            "late": 96,
+            "on_time": 89,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 202,
+            "success_ratio": 0.4405940594059406
+          },
+          "delay_p95_s": 0.23277239999999993,
+          "delay_p99_s": 0.26481624027999995,
+          "delivered_bytes": 148000,
+          "flow_count": 3,
+          "goodput_bps": 296000.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 185,
+          "udp_dropped": 17,
+          "udp_generated": 202,
+          "udp_in_flight": 0
+        }
+      },
+      "bulk_jain_active_goodput": 0.9999998188071321,
+      "bulk_service": {
+        "max_backlogged_service_gap_s": 0.08443199999999984,
+        "starvation_intervals": [],
+        "threshold_s": 0.25
+      },
+      "route_changes": 128
+    },
+    {
+      "case": "hotspot",
+      "policy": "propagation",
+      "scenario_sha256": "faa6956a20a84ce3a2b5a061111405b1c7a5317c76fa5f6e1935bbff72d598ec",
+      "result_sha256": "2b906e5f955e41147501767b8374b7245d835cc6d10fb3f0e31b8edbc1bc210c",
+      "classes": {
+        "BULK": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 0,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 0,
+            "success_ratio": null
+          },
+          "delay_p95_s": 0.268684333,
+          "delay_p99_s": 0.27010774681,
+          "delivered_bytes": 309600,
+          "flow_count": 3,
+          "goodput_bps": 619200.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 258,
+          "udp_dropped": 356,
+          "udp_generated": 614,
+          "udp_in_flight": 0
+        },
+        "CONTROL": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 133,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 133,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.02276700000000006,
+          "delay_p99_s": 0.028565399999999838,
+          "delivered_bytes": 17024,
+          "flow_count": 1,
+          "goodput_bps": 34048.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 133,
+          "udp_dropped": 0,
+          "udp_generated": 133,
+          "udp_in_flight": 0
+        },
+        "REALTIME": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 85,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 85,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.028313599999999984,
+          "delay_p99_s": 0.03165632000000006,
+          "delivered_bytes": 68000,
+          "flow_count": 1,
+          "goodput_bps": 136000.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 85,
+          "udp_dropped": 0,
+          "udp_generated": 85,
+          "udp_in_flight": 0
+        }
+      },
+      "bulk_jain_active_goodput": 0.445159395700003,
+      "bulk_service": {
+        "max_backlogged_service_gap_s": 0.017744000000000204,
+        "starvation_intervals": [],
+        "threshold_s": 0.25
+      },
+      "route_changes": 0
+    },
+    {
+      "case": "hotspot",
+      "policy": "congestion",
+      "scenario_sha256": "faa6956a20a84ce3a2b5a061111405b1c7a5317c76fa5f6e1935bbff72d598ec",
+      "result_sha256": "00128f0db153dae2d2e57fe1345733dd3b3fabaa4037d322d8775d09e047b7bd",
+      "classes": {
+        "BULK": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 0,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 0,
+            "success_ratio": null
+          },
+          "delay_p95_s": 0.23966380029999998,
+          "delay_p99_s": 0.26062721353999985,
+          "delivered_bytes": 646800,
+          "flow_count": 3,
+          "goodput_bps": 1293600.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 539,
+          "udp_dropped": 75,
+          "udp_generated": 614,
+          "udp_in_flight": 0
+        },
+        "CONTROL": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 133,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 133,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.037391732999999934,
+          "delay_p99_s": 0.045540213000000024,
+          "delivered_bytes": 17024,
+          "flow_count": 1,
+          "goodput_bps": 34048.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 133,
+          "udp_dropped": 0,
+          "udp_generated": 133,
+          "udp_in_flight": 0
+        },
+        "REALTIME": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 85,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 85,
+            "success_ratio": 1.0
+          },
+          "delay_p95_s": 0.04425166659999999,
+          "delay_p99_s": 0.046473052999999924,
+          "delivered_bytes": 68000,
+          "flow_count": 1,
+          "goodput_bps": 136000.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 85,
+          "udp_dropped": 0,
+          "udp_generated": 85,
+          "udp_in_flight": 0
+        }
+      },
+      "bulk_jain_active_goodput": 0.4571876223285407,
+      "bulk_service": {
+        "max_backlogged_service_gap_s": 0.019007999999999914,
+        "starvation_intervals": [],
+        "threshold_s": 0.25
+      },
+      "route_changes": 270
+    },
+    {
+      "case": "overload",
+      "policy": "propagation",
+      "scenario_sha256": "baec4265004f93fd21f494d101334fc91cbc71eef493cb3281c025f3384243d7",
+      "result_sha256": "9d3026c02b3eb89b9f519fc762b263f2f9033f0a0e09a4cc88b2fe4b9987b678",
+      "classes": {
+        "BULK": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 0,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 0,
+            "success_ratio": null
+          },
+          "delay_p95_s": 1.0174496000000002,
+          "delay_p99_s": 1.02003057,
+          "delivered_bytes": 108000,
+          "flow_count": 2,
+          "goodput_bps": 216000.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 90,
+          "udp_dropped": 760,
+          "udp_generated": 850,
+          "udp_in_flight": 0
+        },
+        "CONTROL": {
+          "deadline": {
+            "dropped": 0,
+            "late": 13,
+            "on_time": 1049,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 1062,
+            "success_ratio": 0.987758945386064
+          },
+          "delay_p95_s": 0.0427662,
+          "delay_p99_s": 0.050107479999999996,
+          "delivered_bytes": 135936,
+          "flow_count": 1,
+          "goodput_bps": 271872.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 1062,
+          "udp_dropped": 0,
+          "udp_generated": 1062,
+          "udp_in_flight": 0
+        },
+        "REALTIME": {
+          "deadline": {
+            "dropped": 454,
+            "late": 219,
+            "on_time": 7,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 680,
+            "success_ratio": 0.010294117647058823
+          },
+          "delay_p95_s": 0.367598,
+          "delay_p99_s": 0.369386,
+          "delivered_bytes": 180800,
+          "flow_count": 1,
+          "goodput_bps": 361600.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 226,
+          "udp_dropped": 454,
+          "udp_generated": 680,
+          "udp_in_flight": 0
+        }
+      },
+      "bulk_jain_active_goodput": 0.9991598952353073,
+      "bulk_service": {
+        "max_backlogged_service_gap_s": 0.06673600000000002,
+        "starvation_intervals": [],
+        "threshold_s": 0.25
+      },
+      "route_changes": 0
+    },
+    {
+      "case": "overload",
+      "policy": "congestion",
+      "scenario_sha256": "baec4265004f93fd21f494d101334fc91cbc71eef493cb3281c025f3384243d7",
+      "result_sha256": "8570d212b5795f0c878ae3a926d924b993acd850fb50992e90743acb960fa191",
+      "classes": {
+        "BULK": {
+          "deadline": {
+            "dropped": 0,
+            "late": 0,
+            "on_time": 0,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 0,
+            "success_ratio": null
+          },
+          "delay_p95_s": 0.7957854000000001,
+          "delay_p99_s": 0.8139651199999998,
+          "delivered_bytes": 267600,
+          "flow_count": 2,
+          "goodput_bps": 535200.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 223,
+          "udp_dropped": 627,
+          "udp_generated": 850,
+          "udp_in_flight": 0
+        },
+        "CONTROL": {
+          "deadline": {
+            "dropped": 0,
+            "late": 115,
+            "on_time": 947,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 1062,
+            "success_ratio": 0.891713747645951
+          },
+          "delay_p95_s": 0.054566199999999974,
+          "delay_p99_s": 0.05838396000000003,
+          "delivered_bytes": 135936,
+          "flow_count": 1,
+          "goodput_bps": 271872.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 1062,
+          "udp_dropped": 0,
+          "udp_generated": 1062,
+          "udp_in_flight": 0
+        },
+        "REALTIME": {
+          "deadline": {
+            "dropped": 109,
+            "late": 527,
+            "on_time": 44,
+            "overdue": 0,
+            "pending_not_due": 0,
+            "resolved": 680,
+            "success_ratio": 0.06470588235294118
+          },
+          "delay_p95_s": 0.2734319999999999,
+          "delay_p99_s": 0.28595119999999996,
+          "delivered_bytes": 456800,
+          "flow_count": 1,
+          "goodput_bps": 913600.0,
+          "goodput_target_violations": [],
+          "udp_delivered": 571,
+          "udp_dropped": 109,
+          "udp_generated": 680,
+          "udp_in_flight": 0
+        }
+      },
+      "bulk_jain_active_goodput": 0.984551313523345,
+      "bulk_service": {
+        "max_backlogged_service_gap_s": 0.06168000000000001,
+        "starvation_intervals": [],
+        "threshold_s": 0.25
+      },
+      "route_changes": 272
+    }
+  ]
+}

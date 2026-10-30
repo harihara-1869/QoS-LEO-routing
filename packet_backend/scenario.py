@@ -4,6 +4,8 @@ import json
 import math
 from pathlib import Path
 
+from packet_backend.qos import CLASSES, classify, normalize
+
 C_KM_S = 299792.458
 
 
@@ -22,6 +24,7 @@ def integer(value, name, low, high):
 def prepare(config: dict, output: Path) -> dict:
     """Accept explicit dynamic graphs or generate snapshots from the existing orbital model."""
     config = deepcopy(config)
+    qos = normalize(config.get('qos'))
     if config.get('schema_version') != 1:
         raise ValueError('Unsupported schema_version')
     duration = positive(config['duration_s'], 'duration_s')
@@ -74,12 +77,31 @@ def prepare(config: dict, output: Path) -> dict:
             delay = positive(delay, 'delay_s')
             edge_rate = integer(edge.get('capacity_bps', rate), 'link capacity', 1, 10**12)
             edge_queue = integer(edge.get('queue_packets', queue), 'link queue', 1, 1000000)
+            if qos and edge_queue < 3:
+                raise ValueError('QoS needs at least three queue slots per direction')
             settings = (edge_rate, edge_queue)
             if pair in links_by_pair and links_by_pair[pair] != settings:
                 raise ValueError('Capacity/queue settings must be constant per physical link')
             links_by_pair[pair] = settings
             states[pair] = delay
         snapshots.append({'time_s': time, 'states': states})
+    control_step = config.get('control_interval_s')
+    if control_step is not None:
+        positive(control_step, 'control_interval_s')
+        if control_step < 1e-6:
+            raise ValueError('control_interval_s must be at least one microsecond')
+        # Merge in ns-3 clock units: 0.3 and 3*0.1 are the same event time.
+        times_by_ns = {round(tick*control_step*1e9): tick*control_step
+                       for tick in range(math.ceil(duration/control_step))
+                       if tick*control_step < duration}
+        times_by_ns.update({round(s['time_s']*1e9): s['time_s'] for s in snapshots})
+        times = sorted(times_by_ns.values())
+        expanded, index = [], 0
+        for time in times:
+            while index+1 < len(snapshots) and snapshots[index+1]['time_s'] <= time:
+                index += 1
+            expanded.append({'time_s': time, 'states': dict(snapshots[index]['states'])})
+        snapshots = expanded
     pairs = sorted(links_by_pair)
     if len(pairs) > 100000:
         raise ValueError('Scenario exceeds the bounded adapter link limit')
@@ -112,17 +134,22 @@ def prepare(config: dict, output: Path) -> dict:
         max_bytes = integer(f.get('max_bytes', 0), 'max_bytes', 1 if protocol=='tcp' else 0, 2**40)
         if protocol == 'tcp' and flow_rate:
             raise ValueError('TCP is a finite bulk transfer; omit data_rate_bps (Reno controls its rate)')
-        flows.append({'id': fid, 'src': node_ids[f['src']], 'dst': node_ids[f['dst']], 'protocol': protocol,
+        service = classify(f, qos)
+        if protocol == 'tcp' and (service['flow_type'] != 'BULK' or service['deadline_s'] is not None):
+            raise ValueError('TCP is Bulk byte-stream traffic; urgent deadlines apply to UDP datagrams')
+        flows.append({**service, 'id': fid, 'src': node_ids[f['src']], 'dst': node_ids[f['dst']], 'protocol': protocol,
                       'start': start, 'end': end, 'rate': flow_rate, 'size': size, 'max_bytes': max_bytes})
     if len(flows) > 56000:
         raise ValueError('Too many flows for per-flow destination ports')
     plan = {'duration_s': duration, 'seed': seed, 'mtu_bytes': mtu, 'ttl': ttl,
-            'nodes': names, 'links': links, 'snapshots': snapshots, 'flows': flows,
+            'nodes': names, 'links': links, 'snapshots': snapshots, 'flows': flows, 'qos': qos,
             'topology_source': 'explicit' if explicit else 'skyfield_sgp4',
             'source_scenario': config}
-    lines = [f'LEO2 {len(names)} {len(links)} {len(flows)} {len(snapshots)} {duration} {seed} {mtu} {ttl}']
+    weights = [qos['weights'][name] for name in CLASSES] if qos else [4, 2, 1]
+    quantum = qos['quantum_bytes'] if qos else 1500
+    lines = [f'LEO3 {len(names)} {len(links)} {len(flows)} {len(snapshots)} {duration} {seed} {mtu} {ttl} {int(qos is not None)} ' + ' '.join(map(str, [*weights, quantum]))]
     lines += [f'{l["a"]} {l["b"]} {l["capacity_bps"]} {l["queue_packets"]}' for l in links]
-    lines += [' '.join(str(f[key]) for key in ('id','src','dst','protocol','start','end','rate','size','max_bytes')) for f in flows]
+    lines += [' '.join(str(f[key]) for key in ('id','src','dst','protocol','start','end','rate','size','max_bytes','class_id')) for f in flows]
     for snap in snapshots:
         lines.append(f'{snap["time_s"]} {len(snap["links"])}')
         lines += [f'{l["id"]} {l["delay_s"]:.17g}' for l in snap['links']]

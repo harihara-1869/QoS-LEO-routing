@@ -46,7 +46,7 @@ This validates the selected Reno model's basic arithmetic, end-to-end reliable b
 
 ## Handoff and remaining assumptions
 
-[PACKET_BACKEND.md](PACKET_BACKEND.md) defines inputs, observations/actions, link-failure semantics and result units for Person 2's Phase 3 work. The phase owner can now build class workloads, scheduling, conventional policy comparison and class metrics on this backend. Predictive policies and PPO remain later phases.
+[PACKET_BACKEND.md](PACKET_BACKEND.md) defines inputs, observations/actions, link-failure semantics and result units. Phase 3 is now implemented under harihara1869: see [QoS workloads, scheduling, conventional comparisons and class metrics](PHASE3_STATUS.md). Predictive policies and PPO remain later phases.
 
 Current assumptions are explicit: idealised geometric connectivity, full-duplex point-to-point links, fixed per-link capacity/queue limits, one FIFO class, no root queue discipline, piecewise-constant topology/propagation, and no packet fragmentation. Geometric links do not establish finite optical-terminal feasibility. Snapshot sampling can miss transitions within a step; refine the interval for the experiment. In-progress serialization finishes after invalidation. A packet that changes routes between hops is bounded by TTL. The implementation stores the union of scenario links and detailed event logs, so large-scale runtime/memory behavior remains to be measured in Phase 7.
 
