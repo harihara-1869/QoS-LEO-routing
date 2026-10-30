@@ -1,0 +1,10 @@
+.git
+.commandcode
+.venv
+.venv-ns3
+.external
+runs
+__pycache__
+**/__pycache__
+*.pyc
+*.pkl
