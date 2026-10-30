@@ -1,4 +1,4 @@
-// LEO Phase 2 adapter. All packet events, queues and transports belong to ns-3.
+// LEO packet adapter with optional Phase 3 QoS. All packet events, queues and transports belong to ns-3.
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
@@ -12,6 +12,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <vector>
+#include "qos_queue.h"
 
 namespace leo {
 using namespace ns3;
@@ -72,7 +73,7 @@ struct PacketRecord {
   std::vector<uint32_t> path;
 };
 struct Flow {
-  uint32_t id, src, dst, size;
+  uint32_t id, src, dst, size, serviceClass=2;
   std::string protocol;
   double start, end, rate;
   uint64_t maxBytes, accepted = 0, received = 0, txSegments = 0, retransmissions = 0;
@@ -109,6 +110,9 @@ public:
   double duration;
   uint64_t nextPacket = 0, nextTransmission = 0;
   uint32_t mtu, ttl;
+  bool qos=false;
+  std::array<uint32_t,3> weights{4,2,1};
+  uint32_t quantum=1500;
 
   double Now() const { return Simulator::Now().GetSeconds(); }
   void Event(const std::string& kind, int64_t item, int64_t a, int64_t b,
@@ -139,6 +143,7 @@ public:
     p->AddPacketTag(token);
     links[link].flying[dir][token.value] = p;
     Event("tx", link, dir, p->GetUid(), p->GetSize());
+    if(qos) Event("class_service", link, dir, ClassOf(p), p->GetSize());
   }
   void RxEnd(uint32_t link, uint32_t receiver, Ptr<const Packet> p) {
     TransmissionId token;
@@ -179,6 +184,7 @@ public:
     const uint64_t id = nextPacket++;
     auto p = Create<Packet>(f.size);
     PacketId tag; tag.value = id; p->AddPacketTag(tag);
+    ServiceClass service; service.value=f.serviceClass; p->AddPacketTag(service);
     packets.emplace(id, PacketRecord{f.id, f.size, Now(), -1, "in_flight", "horizon", {f.src}});
     f.attempted++;
     if (f.socket->SendTo(p, 0, InetSocketAddress(identities[f.dst], 9000+index)) < 0) Finish(p, "no_route");
@@ -254,9 +260,15 @@ public:
     // Synchronous control handshake while ns-3 is paused inside this event.
     std::cout << "STATE " << std::setprecision(17) << Now() << ' ' << links.size()*2 << '\n';
     for (uint32_t i=0; i<links.size(); ++i)
-      for (uint32_t d=0; d<2; ++d)
+      for (uint32_t d=0; d<2; ++d) {
         std::cout << i << ' ' << d << ' ' << links[i].dev[d]->GetQueue()->GetNPackets()
-                  << ' ' << links[i].dev[d]->GetQueue()->GetNBytes() << '\n';
+                  << ' ' << links[i].dev[d]->GetQueue()->GetNBytes();
+        if(qos) {
+          auto queue=DynamicCast<ClassQueue>(links[i].dev[d]->GetQueue());
+          for(uint32_t c=0;c<3;++c) std::cout << ' ' << queue->ClassPackets(c) << ' ' << queue->ClassBytes(c);
+        }
+        std::cout << '\n';
+      }
     std::cout << "END\n" << std::flush;
     std::string word;
     uint32_t count;
@@ -290,8 +302,9 @@ public:
     std::ifstream in(input);
     uint32_t n, m, f, k, seed;
     std::string magic;
-    in >> magic >> n >> m >> f >> k >> duration >> seed >> mtu >> ttl;
-    if (magic!="LEO2" || !in) throw std::runtime_error("Invalid plan header");
+    in >> magic >> n >> m >> f >> k >> duration >> seed >> mtu >> ttl >> qos
+       >> weights[0] >> weights[1] >> weights[2] >> quantum;
+    if (magic!="LEO3" || !in) throw std::runtime_error("Invalid plan header");
     RngSeedManager::SetSeed(seed);
     Config::SetDefault("ns3::Ipv4L3Protocol::DefaultTtl", UintegerValue(ttl));
     Config::SetDefault("ns3::TcpL4Protocol::SocketType", TypeIdValue(TcpLinuxReno::GetTypeId()));
@@ -332,6 +345,12 @@ public:
       auto interfaces = address.Assign(devices);
       for (uint32_t d=0; d<2; ++d) {
         l.dev[d] = DynamicCast<PointToPointNetDevice>(devices.Get(d));
+        if(qos) {
+          auto queue=CreateObject<ClassQueue>();
+          queue->Configure(l.queue,weights,quantum);
+          queue->changed=[this,i,d](uint32_t c,uint32_t count) { Event("class_queue",i,d,c,count); };
+          l.dev[d]->SetQueue(queue);
+        }
         l.interface[d] = nodes.Get(d?l.b:l.a)->GetObject<Ipv4>()->GetInterfaceForDevice(l.dev[d]);
         l.address[d] = interfaces.GetAddress(d);
         l.error[d] = CreateObject<LinkError>(); l.dev[d]->SetReceiveErrorModel(l.error[d]);
@@ -344,7 +363,7 @@ public:
     }
     flows.resize(f);
     for (auto& flow : flows)
-      in >> flow.id >> flow.src >> flow.dst >> flow.protocol >> flow.start >> flow.end >> flow.rate >> flow.size >> flow.maxBytes;
+      in >> flow.id >> flow.src >> flow.dst >> flow.protocol >> flow.start >> flow.end >> flow.rate >> flow.size >> flow.maxBytes >> flow.serviceClass;
     snapshots.resize(k);
     for (auto& snap : snapshots) {
       uint32_t count; in >> snap.time >> count;

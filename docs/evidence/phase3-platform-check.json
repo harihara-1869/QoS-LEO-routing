@@ -1,0 +1,57 @@
+{
+  "native": "Linux x86_64 Python 3.12",
+  "container": "Existing leo-sim image, linux/amd64, network disabled, mounted workspace, non-root host UID/GID",
+  "host_coverage": "Linux Docker host only; Windows/macOS hosts not tested",
+  "result_hash_checks": [
+    {
+      "case": "low",
+      "policy": "propagation",
+      "match": true
+    },
+    {
+      "case": "low",
+      "policy": "congestion",
+      "match": true
+    },
+    {
+      "case": "normal",
+      "policy": "propagation",
+      "match": true
+    },
+    {
+      "case": "normal",
+      "policy": "congestion",
+      "match": true
+    },
+    {
+      "case": "burst",
+      "policy": "propagation",
+      "match": true
+    },
+    {
+      "case": "burst",
+      "policy": "congestion",
+      "match": true
+    },
+    {
+      "case": "hotspot",
+      "policy": "propagation",
+      "match": true
+    },
+    {
+      "case": "hotspot",
+      "policy": "congestion",
+      "match": true
+    },
+    {
+      "case": "overload",
+      "policy": "propagation",
+      "match": true
+    },
+    {
+      "case": "overload",
+      "policy": "congestion",
+      "match": true
+    }
+  ]
+}

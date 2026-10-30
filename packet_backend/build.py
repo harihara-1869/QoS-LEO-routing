@@ -31,7 +31,9 @@ def build_engine(ns3_python: str | None = None) -> Path:
     lib = nsroot / 'lib64'
     source = ROOT / 'packet_backend/engine.cc'
     compiler_version = subprocess.run([compiler, '--version'], capture_output=True, text=True, check=True).stdout
-    key = hashlib.sha256(source.read_bytes() + str(nsroot).encode() + compiler_version.encode()).hexdigest()[:16]
+    inputs = source.read_bytes() + Path(__file__).read_bytes()
+    inputs += b''.join(p.read_bytes() for p in sorted(source.parent.glob('*.h')))
+    key = hashlib.sha256(inputs + str(nsroot).encode() + compiler_version.encode()).hexdigest()[:16]
     directory = ROOT / 'runs/build' / key
     binary = directory / 'leo-ns3'
     if binary.exists():
