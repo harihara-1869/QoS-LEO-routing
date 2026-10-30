@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "seed": 7,
+  "duration_s": 4,
+  "control_interval_s": 0.05,
+  "qos": {},
+  "network": {
+    "capacity_bps": 1000000,
+    "queue_packets": 60
+  },
+  "topology": {
+    "nodes": [
+      "source",
+      "short",
+      "alternate",
+      "sink",
+      "hotspot"
+    ],
+    "snapshots": [
+      {
+        "time_s": 0,
+        "links": [
+          {
+            "a": "source",
+            "b": "short",
+            "delay_s": 0.002,
+            "capacity_bps": 10000000
+          },
+          {
+            "a": "short",
+            "b": "sink",
+            "delay_s": 0.002
+          },
+          {
+            "a": "source",
+            "b": "alternate",
+            "delay_s": 0.01,
+            "capacity_bps": 10000000
+          },
+          {
+            "a": "alternate",
+            "b": "sink",
+            "delay_s": 0.01
+          },
+          {
+            "a": "hotspot",
+            "b": "short",
+            "delay_s": 0.001,
+            "capacity_bps": 10000000
+          }
+        ]
+      }
+    ]
+  },
+  "flows": [
+    {
+      "flow_id": 1,
+      "flow_type": "CONTROL",
+      "protocol": "udp",
+      "src": "source",
+      "dst": "sink",
+      "start_time": 0.101619,
+      "end_time": 3.5,
+      "packet_size_bytes": 128,
+      "data_rate_bps": 40000.0
+    },
+    {
+      "flow_id": 2,
+      "flow_type": "REALTIME",
+      "protocol": "udp",
+      "src": "source",
+      "dst": "sink",
+      "start_time": 0.100754,
+      "end_time": 3.5,
+      "packet_size_bytes": 800,
+      "data_rate_bps": 160000.0
+    },
+    {
+      "flow_id": 3,
+      "flow_type": "BULK",
+      "protocol": "udp",
+      "src": "source",
+      "dst": "sink",
+      "start_time": 0.103255,
+      "end_time": 3.5,
+      "packet_size_bytes": 1200,
+      "data_rate_bps": 150000.0
+    },
+    {
+      "flow_id": 4,
+      "flow_type": "BULK",
+      "protocol": "udp",
+      "src": "source",
+      "dst": "sink",
+      "start_time": 0.100362,
+      "end_time": 3.5,
+      "packet_size_bytes": 1200,
+      "data_rate_bps": 150000.0
+    },
+    {
+      "flow_id": 5,
+      "flow_type": "CONTROL",
+      "protocol": "udp",
+      "src": "source",
+      "dst": "sink",
+      "start_time": 1.002679,
+      "end_time": 1.25,
+      "packet_size_bytes": 128,
+      "data_rate_bps": 1000000
+    },
+    {
+      "flow_id": 6,
+      "flow_type": "REALTIME",
+      "protocol": "udp",
+      "src": "source",
+      "dst": "sink",
+      "start_time": 1.001828,
+      "end_time": 1.25,
+      "packet_size_bytes": 800,
+      "data_rate_bps": 1500000
+    },
+    {
+      "flow_id": 7,
+      "flow_type": "CONTROL",
+      "protocol": "udp",
+      "src": "source",
+      "dst": "sink",
+      "start_time": 2.00029,
+      "end_time": 2.25,
+      "packet_size_bytes": 128,
+      "data_rate_bps": 1000000
+    },
+    {
+      "flow_id": 8,
+      "flow_type": "REALTIME",
+      "protocol": "udp",
+      "src": "source",
+      "dst": "sink",
+      "start_time": 2.002537,
+      "end_time": 2.25,
+      "packet_size_bytes": 800,
+      "data_rate_bps": 1500000
+    }
+  ],
+  "prediction": {}
+}

@@ -1,0 +1,259 @@
+{
+  "native": "Linux x86_64, Python 3.12",
+  "container": "leo-sim linux/amd64, Linux host, mounted workspace, host UID/GID, network disabled",
+  "host_coverage": "Windows/macOS/Apple Silicon hosts were not exercised",
+  "result_hash_checks": [
+    {
+      "case": "burst",
+      "policy": "propagation",
+      "result_sha256": "a3d7fe25799fdee6610d0872cd9110143b25043f31244d1ec2ce982c91a12038",
+      "match": true
+    },
+    {
+      "case": "burst",
+      "policy": "congestion",
+      "result_sha256": "15e0bae21522b83865f2657e43e973620045cc6a570c80ca0e92719267d1cf4d",
+      "match": true
+    },
+    {
+      "case": "burst",
+      "policy": "qos_current",
+      "result_sha256": "dcb9d8aaad8c73d6e7874ce7ccf6b9a500233319e17d09a5d5b38be859713a40",
+      "match": true
+    },
+    {
+      "case": "burst",
+      "policy": "lifetime",
+      "result_sha256": "b94d1b0c5d0a06287e5d050d28777a994c7614e139dfe6670da91ca854134169",
+      "match": true
+    },
+    {
+      "case": "burst",
+      "policy": "queue_forecast",
+      "result_sha256": "f52aff81a10b35d9d7452270ee24f52e1cf670a979dcb14188b060007d907ab2",
+      "match": true
+    },
+    {
+      "case": "burst",
+      "policy": "predictive",
+      "result_sha256": "d95e692a44b10ae92dc1cd3b043b088157c06434da7f946291154a7176072887",
+      "match": true
+    },
+    {
+      "case": "hotspot",
+      "policy": "propagation",
+      "result_sha256": "aefc636600093f2fe6e2a0ab99bb0f617ea867b514729403f770256178921837",
+      "match": true
+    },
+    {
+      "case": "hotspot",
+      "policy": "congestion",
+      "result_sha256": "906cdb9280db727d7411e50327d4148b3afd61d671ee904e2d5d4daf69bbc1ff",
+      "match": true
+    },
+    {
+      "case": "hotspot",
+      "policy": "qos_current",
+      "result_sha256": "86bad7abae1078186972864a7a7477bb2b187d152b1d13759b15b2929c05ef7f",
+      "match": true
+    },
+    {
+      "case": "hotspot",
+      "policy": "lifetime",
+      "result_sha256": "452d00d22cd003610b9d2b3f5ba1735e0465d21f8d849ddb127e8e513b8b83f7",
+      "match": true
+    },
+    {
+      "case": "hotspot",
+      "policy": "queue_forecast",
+      "result_sha256": "a23336f89acc0504f19359f27d9de006891f72de409055a179a5481b463c379a",
+      "match": true
+    },
+    {
+      "case": "hotspot",
+      "policy": "predictive",
+      "result_sha256": "a2bdf19fb081e1e29edf3bf09affb2f8c1a38e0664c65ba19b63ddbb903372c0",
+      "match": true
+    },
+    {
+      "case": "low",
+      "policy": "propagation",
+      "result_sha256": "7f1a5bbeded687e3fe55d8e4ef582d17eed95d85b56574c037c97ab765a56f83",
+      "match": true
+    },
+    {
+      "case": "low",
+      "policy": "congestion",
+      "result_sha256": "c87a1971bd18174c8d75d7f97b0122d86b468e28027708d30078709ef50cd162",
+      "match": true
+    },
+    {
+      "case": "low",
+      "policy": "qos_current",
+      "result_sha256": "0a782ca2e5fc263345d357fad231c09c5ba666bffc8be3b3454c79c1b524e1a2",
+      "match": true
+    },
+    {
+      "case": "low",
+      "policy": "lifetime",
+      "result_sha256": "bb0354d39e22f93bbb91271a3be2d9a20df221ce38abfdc5ab3db9618f109a37",
+      "match": true
+    },
+    {
+      "case": "low",
+      "policy": "queue_forecast",
+      "result_sha256": "9b0f4f5b5e82cee7fac802e4bf49a3918b86ff64788f7c5581752a3c4deefd12",
+      "match": true
+    },
+    {
+      "case": "low",
+      "policy": "predictive",
+      "result_sha256": "37470bdf1ee7ac846aab383c4eb82a039168a36ad1428c468343eded116bf97b",
+      "match": true
+    },
+    {
+      "case": "normal",
+      "policy": "propagation",
+      "result_sha256": "1b261f5ecae08e8bac1a73d34590e13b478aa8aa0d261ad5a6bfb56248386409",
+      "match": true
+    },
+    {
+      "case": "normal",
+      "policy": "congestion",
+      "result_sha256": "bae3d5cb8d3eff2d6a404b058b581a3c94ab7ceec33069357d5e8847b1fcd3e8",
+      "match": true
+    },
+    {
+      "case": "normal",
+      "policy": "qos_current",
+      "result_sha256": "308ec36d1c86818e3bf11e8d2acb4c4900e218dd4340fe8aca149374ec5400f9",
+      "match": true
+    },
+    {
+      "case": "normal",
+      "policy": "lifetime",
+      "result_sha256": "f0117a49a837c1cfdbe19b7a8af42d114e7df96a4d5d1331a87675d75039f5a5",
+      "match": true
+    },
+    {
+      "case": "normal",
+      "policy": "queue_forecast",
+      "result_sha256": "41f9cd024ac33bbb083d3e1490ef8a0c908faa65ce4762b4989566bba4415a6d",
+      "match": true
+    },
+    {
+      "case": "normal",
+      "policy": "predictive",
+      "result_sha256": "ff5b231f4956801e6b769b26dddba2246a33f29bf25d72d2d5d3be3826879749",
+      "match": true
+    },
+    {
+      "case": "orbital_transition",
+      "policy": "propagation",
+      "result_sha256": "46c276a53df50f56e5ba66673f036f29caadbe40f5de7982e9a346b9fdd9144f",
+      "match": true
+    },
+    {
+      "case": "orbital_transition",
+      "policy": "congestion",
+      "result_sha256": "1fb2d90037493450a42f43b324693a6c8f3b9013fbc86d2fa6a1dbb2137343d4",
+      "match": true
+    },
+    {
+      "case": "orbital_transition",
+      "policy": "qos_current",
+      "result_sha256": "7255be804a33634f14e40e7af5ba134e7c24be549d4bafaba724e08aedc1129f",
+      "match": true
+    },
+    {
+      "case": "orbital_transition",
+      "policy": "lifetime",
+      "result_sha256": "e45b0d8685712f4d9dda28d247d2e706511fab092707dac0c7a059c87e7d4b12",
+      "match": true
+    },
+    {
+      "case": "orbital_transition",
+      "policy": "queue_forecast",
+      "result_sha256": "a73cc79ec95b37ae407ce145c42cfec455c40ce4d24d3d343e09b054ef6a6c48",
+      "match": true
+    },
+    {
+      "case": "orbital_transition",
+      "policy": "predictive",
+      "result_sha256": "68880b4e780a0198a71c6fb1e2837fa1a2f89cf43038b8f134d0a26dbf9ac85f",
+      "match": true
+    },
+    {
+      "case": "overload",
+      "policy": "propagation",
+      "result_sha256": "1752dfdcdbef50231f4a1f5f3204edc631abd7174224b49c0952326b277ac05d",
+      "match": true
+    },
+    {
+      "case": "overload",
+      "policy": "congestion",
+      "result_sha256": "8754adfa37b5d0a4749caacf45ba136346298e88c3669b2910771d969372a8bb",
+      "match": true
+    },
+    {
+      "case": "overload",
+      "policy": "qos_current",
+      "result_sha256": "98c4833774663ab4fad4097e3c6c6413352dc611a46d396ce2c3f1360a077671",
+      "match": true
+    },
+    {
+      "case": "overload",
+      "policy": "lifetime",
+      "result_sha256": "4fff7c4cd8c44e4296fbea680ff8c9367d3d8343e8e66acebf25fcb25aab8db1",
+      "match": true
+    },
+    {
+      "case": "overload",
+      "policy": "queue_forecast",
+      "result_sha256": "ad0f5c75f38e5b33ae0b0771cc47b6fae54b97495ae879a03bdd644ea52224e3",
+      "match": true
+    },
+    {
+      "case": "overload",
+      "policy": "predictive",
+      "result_sha256": "a6b5b8cf08a0dc01fd9d499d15d67662ef19961492c7de6bc2c7e36c80258421",
+      "match": true
+    },
+    {
+      "case": "unexpected_failure",
+      "policy": "propagation",
+      "result_sha256": "a6a561c2d5106e3e3cc210ab3b08fe9c026f4c7eb9f009e35231d6df586731e7",
+      "match": true
+    },
+    {
+      "case": "unexpected_failure",
+      "policy": "congestion",
+      "result_sha256": "4b6de6558eac2b5c1870a683beaae537748bb6b0eb5477a997cea5f79e234839",
+      "match": true
+    },
+    {
+      "case": "unexpected_failure",
+      "policy": "qos_current",
+      "result_sha256": "8dc318d2cba578bd42dbf73f869d0ee3fe76f6b1d4ff6394a439d7f49aaa8571",
+      "match": true
+    },
+    {
+      "case": "unexpected_failure",
+      "policy": "lifetime",
+      "result_sha256": "dc669a02b33b96da9f54def63e888d94ebd52b817f1a207b19fc3ba8e491dbac",
+      "match": true
+    },
+    {
+      "case": "unexpected_failure",
+      "policy": "queue_forecast",
+      "result_sha256": "cc689da7fb8973caf6ab4a41c44f424087f6dd72d003deab98cf0da9913c8834",
+      "match": true
+    },
+    {
+      "case": "unexpected_failure",
+      "policy": "predictive",
+      "result_sha256": "4bfef3910bc287e40c16678f05e829d23995eb612aafed99a7158bd38518377f",
+      "match": true
+    }
+  ]
+}

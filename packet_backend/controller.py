@@ -1,4 +1,5 @@
 """Current-state routing and the synchronous observation/action protocol."""
+from copy import deepcopy
 import heapq
 import json
 from pathlib import Path
@@ -48,9 +49,23 @@ def congestion_routes(observation: dict) -> dict[tuple[int, int], int]:
 POLICIES = {'propagation': shortest_routes, 'congestion': congestion_routes}
 
 
-def resolve_policy(policy):
+def policy_name(policy):
+    return getattr(policy, "name", f"{policy.__module__}.{getattr(policy, '__qualname__', type(policy).__qualname__)}")
+
+
+def resolve_policy(policy, plan=None, output=None):
     if callable(policy):
         return policy
+    from packet_backend.predictive import MODES, PredictivePolicy
+    if policy in MODES:
+        from packet_backend.prediction import OrbitalForecaster
+        orbital = None
+        if plan['topology_source'] == 'skyfield_sgp4' and policy in ('lifetime', 'predictive'):
+            from setup import get_satellite_data
+            source = plan['source_scenario']
+            orbital = OrbitalForecaster(get_satellite_data(csv_file=output/'constellation.csv'), source['epoch'],
+                                        source['links'], source['ground_stations'], plan['prediction'])
+        return PredictivePolicy(policy, plan['prediction'], orbital)
     if policy not in POLICIES:
         raise ValueError(f'Unknown routing policy: {policy}')
     return POLICIES[policy]
@@ -58,6 +73,12 @@ def resolve_policy(policy):
 
 def validate_routes(routes: dict, observation: dict) -> None:
     """Reject unavailable edges, duplicate/unknown endpoints, dead ends and cycles."""
+    if any(len(key)==3 for key in routes):
+        if any(len(key)!=3 or key[0] not in (0,1,2) for key in routes):
+            raise ValueError('Invalid or mixed class routing keys')
+        for c in range(3):
+            validate_routes({(src,dst):nxt for (kind,src,dst),nxt in routes.items() if kind==c}, observation)
+        return
     edges = {frozenset((edge['a'], edge['b'])) for edge in observation['links']}
     nodes = set(range(len(observation['nodes'])))
     for (src, dst), nxt in routes.items():
@@ -77,6 +98,8 @@ def validate_routes(routes: dict, observation: dict) -> None:
 
 
 def execute(binary: Path, plan: dict, output: Path, policy=shortest_routes, timeout_s=120) -> dict:
+    if hasattr(policy, 'reset'):
+        policy.reset()
     destinations = sorted({f['dst'] for f in plan['flows']} | {f['src'] for f in plan['flows'] if f['protocol']=='tcp'})
     inbox = Queue()
     def reader(stream):
@@ -111,24 +134,41 @@ def execute(binary: Path, plan: dict, output: Path, policy=shortest_routes, time
                     link, direction, packets, size = row[:4]
                     queue = {'link_id':link,'direction':direction,'packets':packets,'bytes':size}
                     if plan['qos']:
-                        if len(row) != 10:
+                        if len(row) != 19:
                             raise RuntimeError('Missing class queue observation')
                         queue['classes'] = {name: {'packets':row[4+2*i], 'bytes':row[5+2*i]}
                                             for i, name in enumerate(('CONTROL','REALTIME','BULK'))}
+                        for i, name in enumerate(('CONTROL','REALTIME','BULK')):
+                            queue['classes'][name].update(zip(('arrived_bytes','served_bytes','rejected_bytes'), row[10+3*i:13+3*i]))
                     queues.append(queue)
                 if read()!='END':
                     raise RuntimeError('Invalid observation terminator')
                 links = [{**plan['links'][edge['id']], 'delay_s':edge['delay_s']} for edge in snapshot['links']]
                 observation = {'time_s':float(header[1]), 'nodes':list(plan['nodes']), 'links':links,
                                'queues':queues, 'destinations':destinations, 'qos':plan['qos']}
+                if plan['class_routing']:
+                    observation['mtu_bytes'] = plan['mtu_bytes']
+                    observation['active_flows'] = [{key:f[key] for key in ('id','src','dst','class_id','flow_type','protocol','size','deadline_s','min_goodput_bps')}
+                                                   for f in plan['flows'] if f['start'] <= observation['time_s'] < f['end']
+                                                   and (f['protocol']=='tcp' or f['rate']>0)]
                 start = time.perf_counter()
                 routes = policy(observation)
+                if plan['class_routing'] and all(len(key)==2 for key in routes):
+                    routes = {(c,src,dst):nxt for c in range(3) for (src,dst),nxt in routes.items()}
+                if not plan['class_routing'] and any(len(key)!=2 for key in routes):
+                    raise ValueError('Class routing actions require prediction configuration')
                 validate_routes(routes, observation)
                 control_seconds += time.perf_counter()-start
-                rows = [(src,dst,nxt) for (src,dst),nxt in sorted(routes.items())]
-                process.stdin.write(f'ROUTES {len(rows)}\n'+''.join(f'{a} {b} {c}\n' for a,b,c in rows))
+                rows = [(*key,nxt) for key,nxt in sorted(routes.items())]
+                process.stdin.write(f'ROUTES {len(rows)}\n'+''.join(' '.join(map(str,row))+'\n' for row in rows))
                 process.stdin.flush()
-                records.append({**observation, 'routes':rows})
+                record = {**observation, 'routes':rows}
+                if plan['class_routing']:
+                    record['class_routes'] = rows
+                    record['routes'] = [row[1:] for row in rows if row[0]==2]
+                if hasattr(policy, 'last_diagnostics'):
+                    record['prediction'] = deepcopy(policy.last_diagnostics)
+                records.append(record)
             if read()!='DONE':
                 raise RuntimeError('Engine did not finish cleanly')
             process.stdin.close()

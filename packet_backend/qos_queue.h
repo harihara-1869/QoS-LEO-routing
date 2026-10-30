@@ -34,6 +34,7 @@ public:
     return tid;
   }
   std::function<void(uint32_t, uint32_t)> changed;
+  std::array<uint64_t,3> arrived{0,0,0}, served{0,0,0}, rejected{0,0,0};
   void Configure(uint32_t total, const std::array<uint32_t,3>& weights, uint32_t baseQuantum) {
     SetMaxSize(QueueSize(std::to_string(total)+"p"));
     limit = {total/3,total/3,total-2*(total/3)};
@@ -43,7 +44,9 @@ public:
   uint32_t ClassBytes(uint32_t c) const { return bytes[c]; }
   bool Enqueue(Ptr<Packet> packet) override {
     uint32_t c = ClassOf(packet);
-    if (c>=3 || heads[c].size()>=limit[c]) { DropBeforeEnqueue(packet); return false; }
+    if (c>=3) { DropBeforeEnqueue(packet); return false; }
+    arrived[c]+=packet->GetSize();
+    if (heads[c].size()>=limit[c]) { rejected[c]+=packet->GetSize(); DropBeforeEnqueue(packet); return false; }
     Iterator inserted;
     if (!DoEnqueue(GetContainer().end(),packet,inserted)) return false;
     heads[c].push_back(inserted); bytes[c]+=packet->GetSize();
@@ -84,6 +87,7 @@ private:
     if(c<0) return nullptr;
     auto position=heads[c].front(); heads[c].pop_front();
     bytes[c]-=(*position)->GetSize();
+    if(!drop) served[c]+=(*position)->GetSize();
     auto packet=drop ? DoRemove(position) : DoDequeue(position);
     Notify(c);
     if(heads[c].empty()) { deficit[c]=0; cursor=(c+1)%3; newVisit=true; }

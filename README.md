@@ -1,6 +1,6 @@
 # LEO routing simulator
 
-Phase 2 adds a compiled ns-3 packet backend with dynamic topology, bounded queues, UDP delivery/drop records, runtime route updates and validated TCP Linux Reno cases. The original Phase 1 headless runner remains available for route feasibility. Phase 3 adds Control/Realtime/Bulk scheduling, deadline/fairness metrics and matched conventional routing comparisons. Predictive and learned routing are later phases.
+Phase 2 adds a compiled ns-3 packet backend with dynamic topology, bounded queues, UDP delivery/drop records, runtime route updates and validated TCP Linux Reno cases. The original Phase 1 headless runner remains available for route feasibility. Phase 3 adds Control/Realtime/Bulk scheduling, deadline/fairness metrics and matched conventional routing comparisons. Phase 4 adds orbital/queue forecasts and class-specific predictive heuristic routing. Learned routing is Phase 5.
 
 ## Container setup (Windows and macOS)
 
@@ -81,6 +81,17 @@ Use the same environments or Docker image as above. No new dependencies are requ
 ```
 
 `qos: {}` enables weighted byte DRR for Control, Realtime (including STREAMING) and Bulk. Omit it to retain FIFO. The five seeded workloads run with both propagation and congestion-aware Dijkstra using identical scheduling and traffic. Reports include deadline outcomes, class delay/goodput, Bulk fairness/service gaps and route changes. See [Phase 3 status, configuration, measured tradeoffs and Docker validation](docs/PHASE3_STATUS.md). These synthetic smoke comparisons are not the final calibrated research evaluation.
+
+## Phase 4 predictive routing
+
+The predictive controller uses orbital propagation and recent queue/service trends. It has no trained model or weights. Existing environments and the Docker image support it without new dependencies.
+
+```bash
+.venv/bin/python run_packet_scenario.py --scenario scenarios/phase4/orbital_transition.json --policy predictive --output runs/predictive-orbit
+.venv/bin/python compare_predictive.py --output runs/phase4 --evidence runs/phase4/evidence.json
+```
+
+Inside Docker use `python` instead of `.venv/bin/python`. The comparison runs seven scenarios against propagation, congestion, current-QoS, lifetime-only, queue-forecast and combined predictive routing. Add `prediction: {}` alongside `qos: {}` for matched class-routing runs. Outputs include class route tables, forecasts, forecast errors and explicit fallback decisions. See [Phase 4 configuration, contract, evidence and limitations](docs/PHASE4_STATUS.md). Prediction improves some outcomes and worsens others; the report includes both.
 
 ## Headless baseline
 
