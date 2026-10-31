@@ -6,7 +6,8 @@ from traffic_module import TrafficModule
 from logic_module import LogicalTopology
 
 class SimulationManager:
-    def __init__(self, satellites, epoch="2025-01-01T00:00:00+00:00", config=None, ground_stations=None):
+    def __init__(self, satellites, epoch="2025-01-01T00:00:00+00:00", config=None, ground_stations=None, orbital_start_s=0.0):
+        self.orbital_start_s = orbital_start_s
         self.core = ScheduleCore()
         self.topology = LogicalTopology(satellites, config, ground_stations)
         self.traffic = TrafficModule(self)
@@ -23,7 +24,7 @@ class SimulationManager:
         self._graph_time = None
 
     def get_sim_time(self, seconds_from_start):
-        return self.ts.tt_jd(self.start_epoch.tt + seconds_from_start / 86400)
+        return self.ts.tt_jd(self.start_epoch.whole, self.start_epoch.tt_fraction + (seconds_from_start+self.orbital_start_s)/86400)
 
     def update_topology(self):
         if self._graph_time == self.core.current_time:
@@ -37,7 +38,8 @@ class SimulationManager:
                                "nodes": self._graph.vs['name'],
                                "positions_km": {node.sat.name: point.tolist() for node, point in pos.items()},
                                "links": [{"a": self._graph.vs[e.source]['name'],
-                                          "b": self._graph.vs[e.target]['name'], "distance_km": e['weight']}
+                                          "b": self._graph.vs[e.target]['name'], "distance_km": e['weight'],
+                                          "capacity_bps": int(e['capacity_bps'])}
                                          for e in self._graph.es],
                                "added": len(added), "removed": len(removed)})
         return self._graph
