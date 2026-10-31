@@ -25,7 +25,11 @@ def integer(value, name, low, high):
 def prepare(config: dict, output: Path, *, class_routing=False) -> dict:
     """Accept explicit dynamic graphs or generate snapshots from the existing orbital model."""
     config = deepcopy(config)
+    if not isinstance(config.get('record_control_details',True),bool):
+        raise ValueError('record_control_details must be boolean')
     qos = normalize(config.get('qos'))
+    if not isinstance(config.get('allow_ground_transit',True), bool):
+        raise ValueError('allow_ground_transit must be boolean')
     prediction = prediction_settings(config.get('prediction')) if class_routing else None
     if class_routing and qos is None:
         raise ValueError('Predictive/class routing requires an explicit qos configuration')
@@ -49,7 +53,8 @@ def prepare(config: dict, output: Path, *, class_routing=False) -> dict:
         step = positive(config['step_s'], 'step_s')
         generate_omm_csv(str(output / 'constellation.csv'), **config['constellation'], epoch=config['epoch'])
         satellites = get_satellite_data(csv_file=str(output / 'constellation.csv'))
-        sim = SimulationManager(satellites, config['epoch'], LogicalConfig(**config['links']), config['ground_stations'])
+        orbital_start = positive(config.get('orbital_start_s',0), 'orbital_start_s', zero=True)
+        sim = SimulationManager(satellites, config['epoch'], LogicalConfig(**config['links']), config['ground_stations'], orbital_start)
         for tick in range(math.ceil(duration / step)):
             sim.core.current_time = tick * step
             sim.update_topology()
@@ -148,6 +153,8 @@ def prepare(config: dict, output: Path, *, class_routing=False) -> dict:
     plan = {'duration_s': duration, 'seed': seed, 'mtu_bytes': mtu, 'ttl': ttl,
             'nodes': names, 'links': links, 'snapshots': snapshots, 'flows': flows, 'qos': qos,
             'class_routing': class_routing, 'prediction': prediction,
+            'allow_ground_transit': config.get('allow_ground_transit', True),
+            'record_control_details': config.get('record_control_details',True),
             'topology_source': 'explicit' if explicit else 'skyfield_sgp4',
             'source_scenario': config}
     weights = [qos['weights'][name] for name in CLASSES] if qos else [4, 2, 1]

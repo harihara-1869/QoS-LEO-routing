@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "epoch": "2025-01-01T00:00:00+00:00",
+  "seed": 7,
+  "duration_s": 5.0,
+  "orbital_start_s": 12.0,
+  "step_s": 0.1,
+  "control_interval_s": 0.05,
+  "allow_ground_transit": false,
+  "record_control_details": false,
+  "constellation": {
+    "n_planes": 10,
+    "sats_per_plane": 20,
+    "inclination": 53,
+    "altitude_km": 550
+  },
+  "links": {
+    "isl_max_km": 5000,
+    "min_elev_deg": 5,
+    "iol_cone_deg": 60,
+    "enable_iol": false,
+    "isl_capacity_bps": 10000000,
+    "ground_capacity_bps": 2000000,
+    "ground_links_per_station": 2,
+    "ground_beams_per_satellite": 2,
+    "isl_terminals_per_satellite": 4,
+    "ground_acquisition_s": 0.15,
+    "isl_acquisition_s": 1.0,
+    "ground_hysteresis_deg": 0.5,
+    "ground_min_dwell_s": 0.5,
+    "initial_links_ready": true
+  },
+  "ground_stations": [
+    [
+      "GS_INDIA",
+      28.6139,
+      77.209,
+      0
+    ],
+    [
+      "GS_USA",
+      37.7749,
+      -122.4194,
+      0
+    ],
+    [
+      "GS_BRAZIL",
+      -23.5505,
+      -46.6333,
+      0
+    ],
+    [
+      "GS_AUSTRALIA",
+      -33.8688,
+      151.2093,
+      0
+    ]
+  ],
+  "network": {
+    "queue_packets": 40,
+    "mtu_bytes": 9000,
+    "ttl": 32
+  },
+  "qos": {},
+  "flows": [
+    {
+      "flow_id": 1,
+      "flow_type": "CONTROL",
+      "protocol": "udp",
+      "src": "GS_INDIA",
+      "dst": "GS_AUSTRALIA",
+      "start_time": 0.500648,
+      "end_time": 4.5,
+      "packet_size_bytes": 128,
+      "data_rate_bps": 300000
+    },
+    {
+      "flow_id": 2,
+      "flow_type": "REALTIME",
+      "protocol": "udp",
+      "src": "GS_INDIA",
+      "dst": "GS_USA",
+      "start_time": 0.500302,
+      "end_time": 4.5,
+      "packet_size_bytes": 800,
+      "data_rate_bps": 899999
+    },
+    {
+      "flow_id": 3,
+      "flow_type": "BULK",
+      "protocol": "udp",
+      "src": "GS_USA",
+      "dst": "GS_BRAZIL",
+      "start_time": 0.501302,
+      "end_time": 4.5,
+      "packet_size_bytes": 1200,
+      "data_rate_bps": 1799999
+    },
+    {
+      "flow_id": 4,
+      "flow_type": "BULK",
+      "protocol": "udp",
+      "src": "GS_BRAZIL",
+      "dst": "GS_AUSTRALIA",
+      "start_time": 0.500145,
+      "end_time": 4.5,
+      "packet_size_bytes": 1200,
+      "data_rate_bps": 1799999
+    },
+    {
+      "flow_id": 5,
+      "flow_type": "BULK",
+      "protocol": "udp",
+      "src": "GS_INDIA",
+      "dst": "GS_USA",
+      "start_time": 0.501072,
+      "end_time": 4.5,
+      "packet_size_bytes": 1200,
+      "data_rate_bps": 1200000
+    },
+    {
+      "flow_id": 6,
+      "flow_type": "CONTROL",
+      "protocol": "udp",
+      "src": "GS_INDIA",
+      "dst": "GS_AUSTRALIA",
+      "start_time": 1.500731,
+      "end_time": 1.8,
+      "packet_size_bytes": 128,
+      "data_rate_bps": 3000000
+    },
+    {
+      "flow_id": 7,
+      "flow_type": "REALTIME",
+      "protocol": "udp",
+      "src": "GS_INDIA",
+      "dst": "GS_USA",
+      "start_time": 1.500116,
+      "end_time": 1.8,
+      "packet_size_bytes": 800,
+      "data_rate_bps": 4000000
+    },
+    {
+      "flow_id": 8,
+      "flow_type": "CONTROL",
+      "protocol": "udp",
+      "src": "GS_INDIA",
+      "dst": "GS_AUSTRALIA",
+      "start_time": 3.001015,
+      "end_time": 3.3,
+      "packet_size_bytes": 128,
+      "data_rate_bps": 3000000
+    },
+    {
+      "flow_id": 9,
+      "flow_type": "REALTIME",
+      "protocol": "udp",
+      "src": "GS_INDIA",
+      "dst": "GS_USA",
+      "start_time": 3.000075,
+      "end_time": 3.3,
+      "packet_size_bytes": 800,
+      "data_rate_bps": 4000000
+    }
+  ],
+  "prediction": {
+    "queue_horizon_s": 0.1,
+    "orbital_horizon_s": 0.5,
+    "orbital_step_s": 0.1,
+    "link_guard_s": 0.05
+  }
+}

@@ -9,7 +9,7 @@ from packet_backend.qos import CLASSES
 MODES = ('qos_current', 'lifetime', 'queue_forecast', 'predictive')
 
 
-def tree(nodes, destination, edges, cost):
+def tree(nodes, destination, edges, cost, non_transit=()):
     reverse = [[] for _ in nodes]
     for edge in edges:
         for direction, (a, b) in enumerate(((edge['a'], edge['b']), (edge['b'], edge['a']))):
@@ -21,6 +21,8 @@ def tree(nodes, destination, edges, cost):
     while pending:
         distance, node = heapq.heappop(pending)
         if distance != distances[node]:
+            continue
+        if node != destination and node in non_transit:
             continue
         for neighbor, weight in sorted(reverse[node]):
             candidate = distance+weight
@@ -110,7 +112,7 @@ class PredictivePolicy:
                         value += self.config['change_penalty_s']
                     return value
 
-                selected = tree(obs['nodes'], dst, obs['links'], preferred_cost)
+                selected = tree(obs['nodes'], dst, obs['links'], preferred_cost, obs.get('non_transit_nodes',()))
 
                 def violations(routes):
                     reasons = set()
@@ -131,7 +133,7 @@ class PredictivePolicy:
                 reasons = violations(selected)
                 if reasons:
                     # Deadline/lifetime safeguards override the switching penalty.
-                    selected = tree(obs['nodes'], dst, obs['links'], lambda e, d, a, b: preferred_cost(e, d, a, b, False))
+                    selected = tree(obs['nodes'], dst, obs['links'], lambda e, d, a, b: preferred_cost(e, d, a, b, False), obs.get('non_transit_nodes',()))
                     reasons = violations(selected)
                 if self.mode=='lifetime' and self.orbital is None:
                     reasons = ['link_forecast_unavailable']

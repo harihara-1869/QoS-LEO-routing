@@ -1,0 +1,7 @@
+{
+  "native": "Linux x86_64 Python 3.12",
+  "container": "Existing leo-sim image, linux/amd64, Linux host, host UID/GID, mounted workspace, network disabled",
+  "normal_predictive_result_sha256": "a561698714e7bdbfd4c9df6a43af24e1a36561ae9aab522ed1d0366cb2c5a2c0",
+  "matches": true,
+  "host_coverage": "Windows/macOS hosts and Apple Silicon emulation not tested."
+}

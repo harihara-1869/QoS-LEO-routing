@@ -27,6 +27,8 @@ def _dijkstra(observation, congestion=False):
             cost, node = heapq.heappop(pending)
             if cost != distance[node]:
                 continue
+            if node != destination and node in observation.get('non_transit_nodes',[]):
+                continue
             for neighbor, edge_cost in sorted(reverse[node]):
                 candidate = cost + edge_cost
                 if candidate < distance.get(neighbor, float('inf')):
@@ -64,7 +66,8 @@ def resolve_policy(policy, plan=None, output=None):
             from setup import get_satellite_data
             source = plan['source_scenario']
             orbital = OrbitalForecaster(get_satellite_data(csv_file=output/'constellation.csv'), source['epoch'],
-                                        source['links'], source['ground_stations'], plan['prediction'])
+                                        source['links'], source['ground_stations'], plan['prediction'],
+                                        orbital_start_s=source.get('orbital_start_s',0), topology_step_s=source['step_s'])
         return PredictivePolicy(policy, plan['prediction'], orbital)
     if policy not in POLICIES:
         raise ValueError(f'Unknown routing policy: {policy}')
@@ -92,6 +95,8 @@ def validate_routes(routes: dict, observation: dict) -> None:
             if current in seen:
                 raise ValueError('Policy created a forwarding loop')
             seen.add(current)
+            if current in observation.get('non_transit_nodes',[]):
+                raise ValueError('Policy routes through a non-transit ground station')
             if (current, dst) not in routes:
                 raise ValueError('Policy created a forwarding dead end')
             current = routes[current, dst]
@@ -145,7 +150,8 @@ def execute(binary: Path, plan: dict, output: Path, policy=shortest_routes, time
                     raise RuntimeError('Invalid observation terminator')
                 links = [{**plan['links'][edge['id']], 'delay_s':edge['delay_s']} for edge in snapshot['links']]
                 observation = {'time_s':float(header[1]), 'nodes':list(plan['nodes']), 'links':links,
-                               'queues':queues, 'destinations':destinations, 'qos':plan['qos']}
+                               'queues':queues, 'destinations':destinations, 'qos':plan['qos'],
+                               'non_transit_nodes': [] if plan['allow_ground_transit'] else [i for i,n in enumerate(plan['nodes']) if n in {gs[0] for gs in plan['source_scenario'].get('ground_stations',[])}]}
                 if plan['class_routing']:
                     observation['mtu_bytes'] = plan['mtu_bytes']
                     observation['active_flows'] = [{key:f[key] for key in ('id','src','dst','class_id','flow_type','protocol','size','deadline_s','min_goodput_bps')}
@@ -162,12 +168,24 @@ def execute(binary: Path, plan: dict, output: Path, policy=shortest_routes, time
                 rows = [(*key,nxt) for key,nxt in sorted(routes.items())]
                 process.stdin.write(f'ROUTES {len(rows)}\n'+''.join(' '.join(map(str,row))+'\n' for row in rows))
                 process.stdin.flush()
+                if records and rows == records[-1].get('class_routes',records[-1]['routes']):
+                    rows = records[-1].get('class_routes',records[-1]['routes'])
                 record = {**observation, 'routes':rows}
                 if plan['class_routing']:
                     record['class_routes'] = rows
                     record['routes'] = [row[1:] for row in rows if row[0]==2]
                 if hasattr(policy, 'last_diagnostics'):
                     record['prediction'] = deepcopy(policy.last_diagnostics)
+                if not plan['record_control_details']:
+                    record['recording_mode'] = 'compact'
+                    record['queues'] = [{'link_id':q['link_id'],'direction':q['direction'],
+                                         'classes':{name:{'bytes':v['bytes']} for name,v in q.get('classes',{}).items()}} for q in queues]
+                    record['links'] = [{'id':e['id'],'delay_s':e['delay_s']} for e in links]
+                    if 'prediction' in record:
+                        report = record['prediction']
+                        report['queue_forecasts'] = [{**{k:q[k] for k in ('link_id','direction','at_s')},
+                                                     'classes':{name:{k:v[k] for k in ('current_bytes','predicted_bytes')} for name,v in q['classes'].items()}} for q in report['queue_forecasts']]
+                        report['link_forecasts'] = [{k:e[k] for k in ('link_id','lifetime_upper_s','samples')} for e in report['link_forecasts']]
                 records.append(record)
             if read()!='DONE':
                 raise RuntimeError('Engine did not finish cleanly')

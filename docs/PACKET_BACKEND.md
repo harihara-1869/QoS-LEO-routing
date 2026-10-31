@@ -31,7 +31,19 @@ Each explicit snapshot supplies `time_s` and the **complete active link set**. T
 | `mtu_bytes` | 9000 | IP MTU; preserves the existing 1500-byte application payload without fragmentation. |
 | `ttl` | 32 | IPv4 hop bound, including protection against transient forwarding loops. |
 
-Explicit links can override `capacity_bps` and `queue_packets`; these settings are constant for that physical link during a run. Delay and availability can change at snapshots. Orbital mode retains the inherited idealised connectivity assumptions: geometric availability is not a finite optical-terminal allocation. Positive propagation delay is required. No physical error/loss model is added beyond topology failure and congestion.
+Explicit links can override `capacity_bps` and `queue_packets`; these settings are constant for that physical link during a run. Delay and availability can change at snapshots. Positive propagation delay is required. No physical error/loss model is added beyond topology failure and congestion.
+
+In orbital mode the per-link rates come from the connectivity configuration, not `network.capacity_bps`:
+
+| Field | Default | Meaning |
+| --- | ---: | --- |
+| `links.isl_capacity_bps` | 100000000 | Per-direction rate of every inter-satellite and optical link. |
+| `links.ground_capacity_bps` | 20000000 | Per-direction rate of every ground-access link. |
+| `links.ground_links_per_station` | 1 | Satellites a station tracks at once, highest elevation first. |
+
+`network.capacity_bps` stays the default for explicit graphs only. The defaults keep an ISL:ground ratio of 5:1; the absolute rates are far below operational links so that congestion is reachable at a tractable packet count. A scenario that offers well under these rates will not queue at all. `scenarios/phase5/` and `packet_backend/orbital_workloads.py` show a reduced-scale congested set.
+
+Connectivity uses a finite terminal budget: two same-plane links plus at most one link into each adjacent plane, selected by a single pairing offset per plane pair. The two seam planes therefore carry one cross-plane link instead of two. Ground access is bounded per station. Full-duplex point-to-point links remain an idealisation.
 
 UDP flows specify `flow_id`, named `src`/`dst`, `protocol: "udp"`, `start_time`, `end_time`, `packet_size_bytes` and `data_rate_bps`. One datagram is offered at the start and then at the payload-rate interval until the earlier of end/horizon. Zero rate generates no packets. This is packet-timed CBR traffic, replacing Phase 1's interval-end byte accounting. Headers consume additional link capacity. Oversized payloads are rejected instead of silently fragmenting.
 
@@ -65,6 +77,12 @@ UDP has one terminal record per generated datagram: ID, flow, payload size, crea
 
 TCP is a byte stream: report requested, accepted, delivered, unaccepted and outstanding bytes, completion time, transmitted data segments and retransmission segments. Retransmissions are detected by repeated TCP sequence ranges; the bounded transfers are below sequence-number wrap. ACKs and retransmissions consume network resources but are not additional application deliveries. Incomplete streams are not silently counted as lost application packets. The congestion-window/threshold and receive traces distinguish transport recovery from route changes.
 
-`events.tsv` records queue changes, wire transmissions/drops, IPv4 drops, link/route changes and TCP traces. Its drop traces are network events and may overlap the application-level terminal record; do not add them to UDP dropped counts. Queue means integrate occupancy over simulated time, including zero occupancy; route-change counts compare each flow's complete routing path across snapshots and exclude initial installation. All snapshots are retained in the control/prepared files.
+`events.tsv` records queue changes, wire transmissions/drops, IPv4 drops, link/route changes and TCP traces. Raw events are written only to that file: `results.json` omits them so congested runs stay a few megabytes instead of tens. In-process callers still receive the same list in the returned dictionary. Its drop traces are network events and may overlap the application-level terminal record; do not add them to UDP dropped counts. Queue means integrate occupancy over simulated time, including zero occupancy; route-change counts compare each flow's complete routing path across snapshots and exclude initial installation. All snapshots are retained in the control/prepared files.
 
 `status.json` records running, complete or failed. Reusing a run directory overwrites generated artifacts; results/manifest are removed before a new attempt so a failure cannot appear successful through stale files. Each run should use its own directory when keeping experiment history.
+
+## Terminal/timing refinements
+
+See [FIDELITY_UPDATE.md](FIDELITY_UPDATE.md) for the current contract. `orbital_start_s` advances physical propagation from the OMM epoch without resetting orbital phase; `allow_ground_transit` controls gateway forwarding. `record_control_details: false` retains compact scoring/control records while policies still receive complete current observations. Compact records are marked `recording_mode: compact`; queue histories retain per-class bytes and forecasts retain the fields required for scoring, while full counter/rate diagnostics are omitted. Enable detailed recording when those diagnostics are needed.
+
+Topology and control periods remain separate. The orbital predictor replays acquisition and attachment history on the same physical topology grid, independent of future packet results. ISL pairing offsets remain fixed during an episode. Acquisition, dwell, hysteresis and terminal counts are configured under `links`; legacy defaults retain zero acquisition/hysteresis and an initially established network. The refined fixtures select explicit nonzero values.

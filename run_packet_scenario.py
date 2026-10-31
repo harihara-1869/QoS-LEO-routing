@@ -40,11 +40,15 @@ def _run(scenario, output, *, ns3_python=None, policy=shortest_routes, timeout_s
         result['qos']['fallback_decisions'] = result['prediction']['fallbacks']
         result['qos']['fallback_note'] = 'Recorded predictive safeguard fallbacks replace an entire class/destination tree with current-state congestion routing.' if hasattr(policy, 'last_diagnostics') else 'Conventional policy; no predictive fallback.'
     result['routing_policy'] = policy_name(policy)
-    encoded = json.dumps(result,sort_keys=True,indent=2,allow_nan=False)+'\n'
+    # The raw event log already lives in events.tsv; duplicating it here made
+    # congested runs tens of megabytes each. Keep it in the returned dict for
+    # in-process consumers, but not in the serialized result.
+    encoded = json.dumps({key: value for key, value in result.items() if key != 'events'},
+                         sort_keys=True, indent=2, allow_nan=False)+'\n'
     (output/'results.json').write_text(encoded)
     sources = [Path(__file__).resolve(), *sorted((ROOT/'packet_backend').glob('*.py')),
-               ROOT/'packet_backend/engine.cc', *sorted((ROOT/'packet_backend').glob('*.h')), ROOT/'logic_module.py', ROOT/'setup.py',ROOT/'sim_man.py',
-               ROOT/'requirements.txt', ROOT/'requirements-ns3.txt', ROOT/'compare_policies.py', ROOT/'compare_predictive.py']
+               ROOT/'packet_backend/engine.cc', *sorted((ROOT/'packet_backend').glob('*.h')), ROOT/'logic_module.py', ROOT/'terminal_model.py', ROOT/'setup.py',ROOT/'sim_man.py',
+               ROOT/'requirements.txt', ROOT/'requirements-ns3.txt', ROOT/'compare_policies.py', ROOT/'compare_predictive.py', ROOT/'fidelity_experiments.py']
     revision = subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,capture_output=True,text=True).stdout.strip()
     dirty = bool(subprocess.run(['git','status','--porcelain'],cwd=ROOT,capture_output=True,text=True).stdout)
     manifest = {'result_sha256':hashlib.sha256(encoded.encode()).hexdigest(), 'git_revision':revision,

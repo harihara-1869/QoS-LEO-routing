@@ -101,28 +101,39 @@ class QueueForecaster:
 class OrbitalForecaster:
     """Recompute the public orbital model; never reads exported future snapshots."""
 
-    def __init__(self, satellites, epoch, link_config, ground_stations, config):
+    def __init__(self, satellites, epoch, link_config, ground_stations, config, *, orbital_start_s=0.0, topology_step_s=None):
         from logic_module import LogicalConfig
         from sim_man import SimulationManager
-        self.model = SimulationManager(satellites, epoch, LogicalConfig(**link_config), ground_stations)
+        self.model = SimulationManager(satellites, epoch, LogicalConfig(**link_config), ground_stations, orbital_start_s)
         self.config = config
         self.cache = OrderedDict()
+        self.topology_step_s = topology_step_s or config['orbital_step_s']
+        self.last_tick = -1
+        self._satellites, self._links, self._ground = satellites, link_config, ground_stations
 
     def geometry(self, seconds):
-        key = round(seconds*1e9)
-        if key in self.cache:
-            return self.cache[key]
-        t = self.model.get_sim_time(seconds)
-        topology = self.model.topology
-        positions, _, _, _ = topology.compute(t)
-        ground = {name: topology.get_gs_position(name, t) for name, *_ in topology.ground_stations}
-        graph = topology.construct_unified_graph(positions, ground)
-        names = graph.vs['name']
-        state = {tuple(sorted((names[e.source], names[e.target]))): float(e['weight'])/299792.458 for e in graph.es}
-        self.cache[key] = state
-        while len(self.cache) > 256:
-            self.cache.popitem(last=False)
-        return state
+        # Replay known terminal state on the physical update grid. Future queries
+        # advance this independent model; cached past states never rewind it.
+        tick = math.floor((seconds+1e-8)/self.topology_step_s)
+        if tick in self.cache:
+            return self.cache[tick]
+        if tick < self.last_tick:
+            from logic_module import LogicalTopology, LogicalConfig
+            self.model.topology = LogicalTopology(self._satellites,LogicalConfig(**self._links),self._ground)
+            self.cache.clear()
+            self.last_tick = -1
+        while self.last_tick < tick:
+            self.last_tick += 1
+            t = self.model.get_sim_time(self.last_tick*self.topology_step_s)
+            topology = self.model.topology
+            positions, _, _, _ = topology.compute(t)
+            ground = {name:topology.get_gs_position(name,t) for name,*_ in topology.ground_stations}
+            graph = topology.construct_unified_graph(positions,ground)
+            names = graph.vs['name']
+            self.cache[self.last_tick] = {tuple(sorted((names[e.source],names[e.target]))):float(e['weight'])/299792.458 for e in graph.es}
+            while len(self.cache)>256:
+                self.cache.popitem(last=False)
+        return self.cache[tick]
 
     def predict(self, observation):
         now = observation['time_s']

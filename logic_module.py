@@ -1,3 +1,4 @@
+from terminal_model import TerminalState
 import math
 import numpy as np
 from collections import defaultdict
@@ -21,6 +22,22 @@ class LogicalConfig:
     iol_cone_deg: float = 60
     min_elev_deg: float = 5
     enable_iol: bool = False  # needs an explicit optical terminal model
+    # Experimental rates; neither the ratio nor absolute values are calibrated.
+    # Reduced-scale absolute
+    # values are small enough that queueing is observable at tractable packet
+    # counts. Override per scenario; they are not measurements.
+    isl_capacity_bps: int = 100_000_000
+    ground_capacity_bps: int = 20_000_000
+    # A ground station tracks a bounded number of satellites at once, not every
+    # satellite above the elevation mask.
+    ground_links_per_station: int = 1
+    ground_beams_per_satellite: int = 4
+    isl_terminals_per_satellite: int = 4
+    ground_acquisition_s: float = 0.0
+    isl_acquisition_s: float = 0.0
+    ground_hysteresis_deg: float = 0.0
+    ground_min_dwell_s: float = 0.0
+    initial_links_ready: bool = True
 
 LOGICAL_CONFIG = LogicalConfig()
 
@@ -75,6 +92,12 @@ class LogicalTopology:
         if not (math.isfinite(self.cfg.isl_max_km) and self.cfg.isl_max_km > 0
                 and 0 <= self.cfg.min_elev_deg <= 90 and 0 <= self.cfg.iol_cone_deg <= 180):
             raise ValueError("Invalid link configuration")
+        for name in ("isl_capacity_bps", "ground_capacity_bps", "ground_links_per_station", "ground_beams_per_satellite", "isl_terminals_per_satellite"):
+            value = getattr(self.cfg, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                raise ValueError(f"{name} must be a positive integer")
+        if self.cfg.ground_links_per_station > len(self.nodes):
+            raise ValueError("ground_links_per_station exceeds the satellite count")
         self.ground_stations = list(GROUND_STATIONS if ground_stations is None else ground_stations)
         gs_names = [gs[0] for gs in self.ground_stations]
         if len(gs_names) != len(set(gs_names)) or set(gs_names) & set(names):
@@ -82,6 +105,15 @@ class LogicalTopology:
         for _, lat, lon, height in self.ground_stations:
             if not (-90 <= lat <= 90 and -180 <= lon <= 180 and math.isfinite(height)):
                 raise ValueError("Invalid ground station coordinates")
+        for field in ('ground_acquisition_s','isl_acquisition_s','ground_hysteresis_deg','ground_min_dwell_s'):
+            value = getattr(self.cfg, field)
+            if isinstance(value, bool) or not isinstance(value, (int,float)) or not math.isfinite(value) or value < 0:
+                raise ValueError(f'{field} must be finite and nonnegative')
+        if not isinstance(self.cfg.initial_links_ready, bool):
+            raise ValueError('initial_links_ready must be boolean')
+        self.terminals = TerminalState(self.cfg)
+        self._terminal_epoch = None
+        self._pair_offsets = {}
         self.links = set()
         self.prev_links = set()
         self.last_update_time = None
@@ -106,7 +138,11 @@ class LogicalTopology:
         return nodes
     
     def compute(self, t):
-        pos = {n: n.sat.at(t).position.km for n in self.nodes}
+        if self._terminal_epoch is None:
+            self._terminal_epoch = t
+        seconds = float(t-self._terminal_epoch)*86400
+        geocentric = {n:n.sat.at(t) for n in self.nodes}
+        pos = {n:point.position.km for n,point in geocentric.items()}
         if any(not np.all(np.isfinite(point)) for point in pos.values()):
             raise ValueError("Non-finite satellite position; check epoch and OMM inputs")
         orbits = defaultdict(list)
@@ -126,25 +162,37 @@ class LogicalTopology:
                             (LinkType.ISL_INTRA, a, b)
                         )
         
-        # adjacent orbit ISLs
-        for oid in orbits:
-            for adj in (oid-1, oid+1):
-                if adj not in orbits:
+        # Persistent pairing offsets reserve the same terminals throughout a run.
+        # Adjacent-plane ISLs use one pairing offset per plane pair. This gives
+        # every satellite at most one cross-plane neighbour per adjacent plane
+        # and makes links reciprocal by construction. Independent nearest-
+        # neighbour selection is not used: adjacent planes cross near the
+        # inclination latitude, which produced one-sided links and satellites
+        # with three to six neighbours instead of a fixed terminal budget.
+        for oid in sorted(orbits):
+            adj = oid + 1
+            if adj not in orbits:
+                continue
+            plane_a, plane_b = orbits[oid], orbits[adj]
+            count = len(plane_b)
+
+            def partner(index, offset):
+                return plane_b[(round(index * count / len(plane_a)) + offset) % count]
+
+            if oid not in self._pair_offsets:
+                self._pair_offsets[oid] = min(range(count), key=lambda k: (
+                    sum(float(np.linalg.norm(pos[n] - pos[partner(i,k)])) for i,n in enumerate(plane_a)), k))
+            best = self._pair_offsets[oid]
+            used = set()
+            for i, n in enumerate(plane_a):
+                m = partner(i, best)
+                if m in used:
                     continue
-
-                for n in orbits[oid]:
-                    nearest = min(
-                        orbits[adj],
-                        key = lambda m: np.linalg.norm(pos[n] - pos[m])
-                    )
-
-                    dist = np.linalg.norm(pos[n] - pos[nearest])
-
-                    if dist <= self.cfg.isl_max_km and link_clear_of_earth(pos[n], pos[nearest]):
-                        a, b = sorted((n, nearest), key = lambda node: node.sat.name)
-                        candidate_links.add(
-                            (LinkType.ISL_INTER, a, b)
-                        )
+                used.add(m)
+                dist = np.linalg.norm(pos[n] - pos[m])
+                if dist <= self.cfg.isl_max_km and link_clear_of_earth(pos[n], pos[m]):
+                    a, b = sorted((n, m), key=lambda node: node.sat.name)
+                    candidate_links.add((LinkType.ISL_INTER, a, b))
 
         # IOL cone models
         for a in (self.nodes if self.cfg.enable_iol else []):
@@ -168,23 +216,22 @@ class LogicalTopology:
                         (LinkType.IOL, a_norm, b_norm)
                     )
 
-        # UDL satellite ground links
+        # Ground access. A station tracks a bounded number of satellites at
+        # once (highest elevation first), not every satellite above the mask.
+        gs_objects = {name: wgs84.latlon(lat, lon, elevation_m=h)
+                      for name, lat, lon, h in self.ground_stations}
+        ground_positions = {name:gs.at(t) for name,gs in gs_objects.items()}
+        visible = {name: [] for name in gs_objects}
         for n in self.nodes:
-            for name, lat, lon, h in self.ground_stations:
-                gs = wgs84.latlon(lat, lon, elevation_m = h)
-
-                alt, _, _ = (n.sat - gs).at(t).altaz()
-                if alt.degrees < self.cfg.min_elev_deg:
-                    continue
-
-                gs_pos = gs.at(t).position.km
-
+            for name, gs in gs_objects.items():
                 # Skyfield elevation uses WGS84; a mean-radius sphere incorrectly
                 # occludes ground stations near the poles. Elevation gates UDLs.
-                if np.all(np.isfinite(gs_pos)):
-                    candidate_links.add(
-                        (LinkType.UDL, n, name)
-                    )
+                alt, _, _ = (geocentric[n] - ground_positions[name]).altaz()
+                if alt.degrees >= self.cfg.min_elev_deg:
+                    visible[name].append((alt.degrees, n.sat.name, n))
+        for n,name in self.terminals.select_ground(visible, seconds):
+            candidate_links.add((LinkType.UDL,n,name))
+        candidate_links = self.terminals.admit(candidate_links, seconds)
 
         new_links = candidate_links - self.links
         removed_links = self.links - candidate_links
@@ -209,6 +256,7 @@ class LogicalTopology:
 
         edges = []
         weights = []
+        capacities = []
 
         for link_type, a, b in sorted(self.links, key=lambda link: (link[0].value, link[1].sat.name, link[2] if isinstance(link[2], str) else link[2].sat.name)):
             if link_type in (LinkType.ISL_INTRA, LinkType.ISL_INTER, LinkType.IOL):
@@ -229,9 +277,12 @@ class LogicalTopology:
 
             edges.append((u, v))
             weights.append(dist)
+            capacities.append(self.cfg.ground_capacity_bps if link_type == LinkType.UDL
+                              else self.cfg.isl_capacity_bps)
 
         g.add_edges(edges)
         g.es["weight"] = weights
+        g.es["capacity_bps"] = capacities
 
         return g
     
