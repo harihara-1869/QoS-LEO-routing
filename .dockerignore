@@ -8,3 +8,15 @@ __pycache__
 **/__pycache__
 *.pyc
 *.pkl
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+
+.aws/
+.codex/
+.agents/
+.env
+.env.*
+
+.local/

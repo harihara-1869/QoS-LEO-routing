@@ -102,9 +102,9 @@ class OrbitalForecaster:
     """Recompute the public orbital model; never reads exported future snapshots."""
 
     def __init__(self, satellites, epoch, link_config, ground_stations, config, *, orbital_start_s=0.0, topology_step_s=None):
-        from logic_module import LogicalConfig
-        from sim_man import SimulationManager
-        self.model = SimulationManager(satellites, epoch, LogicalConfig(**link_config), ground_stations, orbital_start_s)
+        from constellation.topology import LogicalConfig
+        from constellation.snapshots import TopologySnapshots
+        self.model = TopologySnapshots(satellites, epoch, LogicalConfig(**link_config), ground_stations, orbital_start_s)
         self.config = config
         self.cache = OrderedDict()
         self.topology_step_s = topology_step_s or config['orbital_step_s']
@@ -118,7 +118,7 @@ class OrbitalForecaster:
         if tick in self.cache:
             return self.cache[tick]
         if tick < self.last_tick:
-            from logic_module import LogicalTopology, LogicalConfig
+            from constellation.topology import LogicalTopology, LogicalConfig
             self.model.topology = LogicalTopology(self._satellites,LogicalConfig(**self._links),self._ground)
             self.cache.clear()
             self.last_tick = -1

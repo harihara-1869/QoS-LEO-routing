@@ -11,7 +11,7 @@ import unittest
 from packet_backend.build import ROOT, build_engine
 from packet_backend.controller import shortest_routes
 from packet_backend.scenario import prepare
-from run_packet_scenario import run
+from experiments.run import run
 
 
 def fixture(name):
@@ -34,7 +34,7 @@ class ScenarioValidationTests(unittest.TestCase):
 
 
 @unittest.skipUnless(shutil.which('g++') and Path(os.environ.get('LEO_NS3_PYTHON',str(ROOT/'.venv-ns3/bin/python'))).exists(),
-                     'Install requirements-ns3.txt in .venv-ns3 and g++ to run packet integration tests')
+                     'Install requirements/ns3.txt in .venv-ns3 and g++ to run packet integration tests')
 class PacketBackendTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

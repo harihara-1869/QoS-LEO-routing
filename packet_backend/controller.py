@@ -63,7 +63,7 @@ def resolve_policy(policy, plan=None, output=None):
         from packet_backend.prediction import OrbitalForecaster
         orbital = None
         if plan['topology_source'] == 'skyfield_sgp4' and policy in ('lifetime', 'predictive'):
-            from setup import get_satellite_data
+            from constellation.omm import get_satellite_data
             source = plan['source_scenario']
             orbital = OrbitalForecaster(get_satellite_data(csv_file=output/'constellation.csv'), source['epoch'],
                                         source['links'], source['ground_stations'], plan['prediction'],
@@ -102,7 +102,7 @@ def validate_routes(routes: dict, observation: dict) -> None:
             current = routes[current, dst]
 
 
-def execute(binary: Path, plan: dict, output: Path, policy=shortest_routes, timeout_s=120) -> dict:
+def execute(binary: Path, plan: dict, output: Path, policy=shortest_routes, timeout_s=120, observer=None) -> dict:
     if hasattr(policy, 'reset'):
         policy.reset()
     destinations = sorted({f['dst'] for f in plan['flows']} | {f['src'] for f in plan['flows'] if f['protocol']=='tcp'})
@@ -165,6 +165,16 @@ def execute(binary: Path, plan: dict, output: Path, policy=shortest_routes, time
                     raise ValueError('Class routing actions require prediction configuration')
                 validate_routes(routes, observation)
                 control_seconds += time.perf_counter()-start
+                if observer is not None:
+                    viewer = {**observation}
+                    if plan['class_routing']:
+                        viewer.update(class_routes=[(*key,n) for key,n in sorted(routes.items())],
+                                      routes=[(a,b,n) for (c,a,b),n in sorted(routes.items()) if c==2])
+                    else:
+                        viewer['routes'] = [(a,b,n) for (a,b),n in sorted(routes.items())]
+                    if hasattr(policy,'last_diagnostics'):
+                        viewer['prediction'] = {'decisions':deepcopy(policy.last_diagnostics.get('decisions',[]))}
+                    observer(viewer)
                 rows = [(*key,nxt) for key,nxt in sorted(routes.items())]
                 process.stdin.write(f'ROUTES {len(rows)}\n'+''.join(' '.join(map(str,row))+'\n' for row in rows))
                 process.stdin.flush()

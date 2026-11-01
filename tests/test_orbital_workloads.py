@@ -9,7 +9,7 @@ from pathlib import Path
 
 from packet_backend.build import ROOT
 from packet_backend.orbital_workloads import CASES, orbital_workload
-from run_packet_scenario import run
+from experiments.run import run
 
 HAVE_ENGINE = bool(shutil.which('g++')) and Path(
     os.environ.get('LEO_NS3_PYTHON', str(ROOT / '.venv-ns3/bin/python'))).exists()

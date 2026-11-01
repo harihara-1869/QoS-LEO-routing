@@ -12,8 +12,8 @@ from packet_backend.controller import congestion_routes, shortest_routes
 from packet_backend.qos_metrics import deadlines, jain, service_gaps
 from packet_backend.scenario import prepare
 from packet_backend.workloads import workload
-from run_packet_scenario import run
-from compare_policies import compare
+from experiments.run import run
+from experiments.compare_baselines import compare
 
 
 def single():
@@ -152,7 +152,7 @@ class QosEngineTests(unittest.TestCase):
             self.assertEqual(policies['propagation']['qos']['config'],policies['congestion']['qos']['config'])
             self.assertGreater(policies['congestion']['qos']['classes']['REALTIME']['delivered_bytes'],
                                policies['propagation']['qos']['classes']['REALTIME']['delivered_bytes'])
-            with patch('compare_policies.run',side_effect=RuntimeError('failed')):
+            with patch('experiments.compare_baselines.run',side_effect=RuntimeError('failed')):
                 with self.assertRaises(RuntimeError): compare('burst',Path(temp)/'a')
             self.assertFalse((Path(temp)/'a/comparison.json').exists())
 

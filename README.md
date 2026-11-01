@@ -1,162 +1,158 @@
-# LEO routing simulator
+# APOGEE — Predictive QoS Routing for LEO Networks
 
-Phase 2 adds a compiled ns-3 packet backend with dynamic topology, bounded queues, UDP delivery/drop records, runtime route updates and validated TCP Linux Reno cases. The original Phase 1 headless runner remains available for route feasibility. Phase 3 adds Control/Realtime/Bulk scheduling, deadline/fairness metrics and matched conventional routing comparisons. Phase 4 adds orbital/queue forecasts and class-specific predictive heuristic routing. Phase 5 (learned routing) has not started: the corrected environment, congested orbital scenarios and the implementation handoff are in [docs/PHASE5_HANDOFF.md](docs/PHASE5_HANDOFF.md).
+APOGEE is a local research simulator and Mission Control web app for studying routing in moving low Earth orbit satellite networks. Design a constellation and ground stations, configure mixed traffic, launch a packet simulation, inspect live metrics, and replay or compare saved runs from one browser application.
 
-## Container setup (Windows and macOS)
+The system combines Skyfield/SGP4 orbital geometry, a compiled **ns-3 packet engine**, Python routing policies, and a React/Three.js dashboard. The packet engine owns forwarding, queues, transport and simulated time. The browser displays its observations; it does not simulate network outcomes.
 
-The Phase 2 packet backend requires Linux. The pinned `ns3` package only publishes x86_64 Linux wheels, and `packet_backend/build.py` uses Linux compiler and linker flags. On Windows and macOS, run the packet simulator inside the provided Docker image. Install Docker Desktop first.
+**Current state:** the packet engine, QoS scheduler, predictive heuristics and dashboard are implemented. Learned routing is **not implemented**. Phase 5 remains deferred until the dashboard release gate passes. Remaining implementation belongs to `person_1` through `person_4`; harihara1869's implementation contribution is complete. See [remaining work and ownership](docs/REMAINING_WORK.md).
 
-Build the image once from the repository root:
+## Research
 
-```bash
-docker build --platform linux/amd64 -t leo-sim .
-```
+The research question is whether **short-horizon link-availability forecasts, queue forecasts and class-specific service safeguards** improve routing during congestion and handovers, without sacrificing Bulk service.
 
-Start an interactive shell with the repository mounted at `/workspace`:
+The current implementation provides:
 
-```bash
-docker run --rm -it --platform linux/amd64 -v "$PWD":/workspace -w /workspace leo-sim
-```
+- **Control, Realtime and Bulk** traffic, weighted byte deficit round robin, reserved class queue slots and explicit service targets.
+- Six comparable routing policies: propagation Dijkstra, congestion-aware Dijkstra, current-state QoS, link lifetime, queue forecast, and combined predictive QoS.
+- Model-based orbital prediction and an EWMA queue forecast. These are heuristics/statistical estimates, with no trained ML model. Forecasts refresh during execution using the allowed observation/model inputs.
+- Matched scenarios, seeds, manifests and result hashes; deadline success, delivered-packet latency, goodput, fairness, service gaps, route churn and forecast-error measurements.
+- Finite terminal/beam budgets, acquisition outages, attachment hysteresis/dwell, configurable gateway transit, and independent geometry/reference-vector checks.
 
-For Windows PowerShell, the mount command is:
+These are controlled experiments, not a calibrated model of an operator's network. Link rates and terminal parameters are experimental assumptions; public measurement calibration and a statistical evaluation are unfinished. The recorded handover case improves some Realtime outcomes under predictive routing, while the 50 ms Control target remains mostly infeasible. Increased total delivery alone does not establish QoS success or a general policy advantage.
 
-```powershell
-docker run --rm -it --platform linux/amd64 --mount "type=bind,source=$($PWD.Path),target=/workspace" -w /workspace leo-sim
-```
+The candidate contribution is the evaluated combination of forecasts and service safeguards. Using PPO, ns-3 or queue-aware routing alone is not a novelty claim. Future learned policies should train offline and use **frozen weights for evaluation**; observations and forecasts can still update. Continuous online learning is outside the current scope.
 
-Inside the container the two virtual environments from the native instructions already exist, so there is no dependency installation step. Use `/opt/leo-venv/bin/python` for the orbital runner and tests, and leave ns-3 to `/opt/leo-ns3-venv` (the image sets `LEO_NS3_PYTHON`):
+Read the [research scope and measurement preparation](docs/research/RESEARCH_SCOPE.md), [current fidelity/results](docs/research/FIDELITY.md), and [learning handoff](docs/research/LEARNING_HANDOFF.md). Full literature review, calibration and held-out experiments remain explicit work.
 
-```bash
-/opt/leo-venv/bin/python compare_policies.py --case all --output runs/phase3
-/opt/leo-venv/bin/python run_packet_scenario.py --scenario scenarios/packet_baseline.json --output runs/packet-baseline
-/opt/leo-venv/bin/python -m unittest discover -s tests -v
-/opt/leo-venv/bin/python run_scenario.py --scenario scenarios/baseline.json --output runs/baseline
-```
+## Setup
 
-Notes:
+Run all commands from the repository root.
 
-- On Apple Silicon the image runs as `linux/amd64` under emulation. Emulation can be slower; always pass `--platform linux/amd64` so pip finds the ns-3 wheel.
-- Files written to `runs/` belong to the container user. On Linux hosts add `--user "$(id -u):$(id -g)"` to keep host ownership.
-- The OpenGL viewer needs a display, so it is not available in the container by default. Run `test.py` natively with `requirements-viz.txt` if you need it.
-- Windows users can alternatively use WSL2 with Ubuntu 24.04. The native commands below then work unchanged, including the Linux `.venv/bin` paths.
+### Recommended: Docker
 
-## Phase 2 packet simulation
-
-Run from the repository root. The compiled adapter requires a C++20-capable `g++` and the pinned ns-3 Linux wheel; Python 3.12 / Linux x86_64 was tested. Keep the orbital and ns-3 dependencies in separate virtual environments. On Windows and macOS, use the [container setup](#container-setup-windows-and-macos) instead.
+Install Docker with Compose, then run:
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-python3 -m venv .venv-ns3
-.venv-ns3/bin/pip install -r requirements-ns3.txt
-.venv/bin/python run_packet_scenario.py
+docker compose up --build
+```
+
+Open **http://localhost:8080**. Installations with the standalone launcher can use `docker-compose up --build`.
+
+The first build needs internet access. Once built, `docker compose up --no-build` starts with local assets and bundled recorded runs. Stop with Ctrl+C or `docker compose down`; history persists under `runs/dashboard/` through the host `runs/` mount.
+
+- `LEO_DASHBOARD_PORT` changes the local port; `LEO_RUNS_DIR` changes the run directory mount.
+- Only `127.0.0.1` is published by default. The app is intended for a single local user.
+- The pinned packet engine runs in Linux x86_64 containers. Apple Silicon requires emulation. Linux container execution is verified; Windows/macOS host walkthroughs are still assigned work.
+- Keep the mounted run directory writable. Linux users can set the container UID/GID with a Compose override to retain host ownership of generated files.
+
+The same image supports command-line experiments without opening a second web service:
+
+```bash
+docker compose run --rm --no-deps mission-control python -m experiments.run --scenario scenarios/phase5/normal.json --policy predictive --output runs/example
+```
+
+### Native development: Linux x86_64
+
+Use Python 3.12, a C++20-capable `g++`, and Node.js 24. Keep ns-3 in a separate environment from the orbital/API dependencies:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements/dev.txt
+python3.12 -m venv .venv-ns3
+.venv-ns3/bin/pip install -r requirements/ns3.txt
+npm ci --prefix web
+npm run build --prefix web
+.venv/bin/python -m dashboard
+```
+
+Open **http://127.0.0.1:8000**. For hot reload, run `npm run dev --prefix web` in another terminal and use the Vite URL. `LEO_NS3_PYTHON` can select another pinned ns-3 environment. The first packet run compiles the adapter into `runs/build/`.
+
+Requirements are separated by purpose: `requirements/base.txt` for orbital dependencies, `ns3.txt` for the engine, `dashboard.txt` for the app, and `dev.txt` for development/API tests. The old OpenGL and route-feasibility workflows are retired.
+
+## Working with the simulator
+
+1. **Design:** open Constellation Studio, choose a preset, edit orbital parameters, stations, links and traffic, then generate a preview. Preview uses the backend orbital model and has no packet-performance metrics.
+2. **Run:** launch with one of the six implemented policies. The job freezes its configuration; additional jobs queue. Engine pause/resume acts at a control boundary. Pause view/Catch up affects presentation only.
+3. **Inspect:** follow simulation time separately from wall time. UDP generated = delivered + dropped + in-flight. Latency describes delivered packets; deadline success includes resolved failures and censors not-yet-due outcomes. TCP contributes application bytes to goodput, not UDP datagram counts.
+4. **Revisit:** open the Run Library, import existing packet-run artifacts or bundles, replay, seek to events, bookmark a cursor, compare matched runs, and export results. Two real matched runs are bundled for offline demonstrations.
+
+Closing the browser leaves the worker running. Reopening reconnects; shutting down the app interrupts unfinished work and retains its recorded artifacts. Run only one API/supervisor against a run-data directory at a time.
+
+For CLI experiments:
+
+```bash
+.venv/bin/python -m experiments.run --scenario scenarios/phase5/normal.json --policy predictive --output runs/normal-predictive
+.venv/bin/python -m experiments.compare_baselines --case all --output runs/baselines
+.venv/bin/python -m experiments.compare_predictive --scenario scenarios/phase5/normal.json --policies propagation congestion qos_current predictive --output runs/comparison
+.venv/bin/python -m experiments.fidelity --quick
+```
+
+Each packet run writes the source/prepared scenario, packet results, raw events, controller history, status and a provenance manifest. Dashboard runs also record viewer telemetry and replay data. `runs/` is generated and gitignored; archived evidence under `docs/evidence/` and the bundled demo records are retained. Historical hashes identify their original source paths/revisions and are not rewritten by this cleanup.
+
+See the [packet contract](docs/architecture/PACKET_BACKEND.md), [QoS definitions](docs/architecture/QOS.md), [predictive routing](docs/architecture/PREDICTIVE_ROUTING.md), and [dashboard guide/walkthrough](docs/dashboard/GUIDE.md).
+
+## Phase-wise progress
+
+| Phase | State | Reference |
+| --- | --- | --- |
+| 1 — Foundation and engine selection | Completed foundation; useful geometry retained, original viewer/headless workflow retired | [Foundation history](docs/archive/PHASE1_FOUNDATION.md), [engine decision](docs/archive/PACKET_ENGINE_DECISION.md) |
+| 2 — Packet/network behavior | Implemented: ns-3 forwarding, bounded queues, failures, runtime routing and controlled TCP cases | [Packet contract](docs/architecture/PACKET_BACKEND.md), [validation record](docs/archive/PHASE2_VALIDATION.md) |
+| 3 — QoS and conventional baselines | Implemented: class scheduling/workloads and matched comparisons | [QoS contract/evidence](docs/architecture/QOS.md) |
+| 4 — Predictive routing | Implemented: orbital/queue forecasts, class routing, safeguards and forecast scoring | [Predictive routing](docs/architecture/PREDICTIVE_ROUTING.md), [fidelity refinement](docs/research/FIDELITY.md) |
+| 4.5 — Mission Control | Frontend and local integration implemented; release/performance gates remain | [Dashboard guide](docs/dashboard/GUIDE.md), [release checklist](docs/REMAINING_WORK.md#dashboard-release-gate) |
+| 5 — Learned controller | Not started; deferred until dashboard acceptance | [Learning handoff](docs/research/LEARNING_HANDOFF.md) |
+| 6 — Measurement calibration | Source/schema preparation only; no acquired validated trace or fitted calibration | [Research scope](docs/research/RESEARCH_SCOPE.md) |
+| 7 — Research evaluation | Bounded comparisons exist; batch/resume, held-out statistics and complete ablations remain | [Research/evaluation ownership](docs/REMAINING_WORK.md#person_4--calibration-and-research-evaluation) |
+| 8 — Research demonstration/submission | App replay and presentation exist; final calibrated/learned result package remains | [Remaining work](docs/REMAINING_WORK.md), [mentor walkthrough](docs/dashboard/GUIDE.md#mentor-walkthrough-35-minutes) |
+
+## Remaining work
+
+The maintained checklist, dependencies and acceptance evidence are in **[docs/REMAINING_WORK.md](docs/REMAINING_WORK.md)**. Ownership is by complete area:
+
+| Contributor | Area |
+| --- | --- |
+| `person_1` | Learning environment, safe learned routing, training and checkpoint integration |
+| `person_2` | Dashboard frontend, scientific inspection, comparison and presentation |
+| `person_3` | Runtime/backend reliability, indexed replay/storage, APIs and deployment |
+| `person_4` | Measurement calibration, experiment automation, statistical evaluation and research report |
+
+No remaining implementation or integration duty is assigned to harihara1869. Contributors own code, tests, evidence and documentation for their areas. Final research claims wait for frozen calibration, policies and held-out evaluation; an unfavorable learned-policy result must also be reported.
+
+## Repository layout
+
+```text
+constellation/   OMM inputs, topology, terminals and physical snapshots
+packet_backend/  Compiled ns-3 engine, routing/forecasting, scheduling and metrics
+experiments/     Module-based run/comparison/sensitivity commands
+dashboard/       Local API, worker supervision, telemetry and persistent history
+web/             Browser application, local assets and frontend tests
+scenarios/       Controlled regression fixtures and congested orbital cases
+tests/           Packet, geometry, fidelity, prediction and API regression tests
+tools/           Acceptance-evidence recording utilities
+requirements/    Pinned dependencies by runtime responsibility
+docs/            Documentation index, remaining work, contracts, research and evidence
+runs/            Generated experiments, build cache and dashboard history (ignored)
+```
+
+## Verification
+
+```bash
 .venv/bin/python -m unittest discover -s tests -v
+npm test --prefix web
+npm run build --prefix web
 ```
 
-The first packet run compiles `packet_backend/engine.cc` into an ignored `runs/build/` cache. Later runs reuse that binary. It links ns-3 directly and does not run the Cppyy interpreter. Use `--ns3-python /path/to/environment/bin/python` or `LEO_NS3_PYTHON` for a different ns-3 environment.
-
-Examples:
+Browser tests require the app to be running and an installed Chromium:
 
 ```bash
-.venv/bin/python run_packet_scenario.py --scenario scenarios/phase2/disappearing_link.json --output runs/link-failure
-.venv/bin/python run_packet_scenario.py --scenario scenarios/phase2/tcp_reno_loss.json --output runs/reno-loss
-.venv/bin/python run_packet_scenario.py --scenario scenarios/phase2/orbital_transition.json --output runs/orbital-transition
-.venv/bin/python -m tools.record_phase2_evidence
+npm exec --prefix web -- playwright install chromium
+LEO_TEST_URL=http://127.0.0.1:8080 npm run test:browser --prefix web
+LEO_TEST_URL=http://127.0.0.1:8080 npm run test:compatibility --prefix web
+LEO_TEST_URL=http://127.0.0.1:8080 npm run test:live --prefix web
 ```
 
-`scenarios/packet_baseline.json` runs the 200-satellite baseline through the actual packet engine. Explicit small graph fixtures in `scenarios/phase2/` isolate serialization, propagation, congestion, failures and rerouting. The orbital-transition example spans 120 simulated seconds and exercises natural topology changes.
+Live tests create test runs; use an isolated run directory for verification. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` optionally selects an existing browser. See the [docs index](docs/README.md) for the current contracts, known limits, historical validation and evidence provenance.
 
-Each output directory contains `results.json` (metrics, UDP outcomes, events and routes), `manifest.json` (versions/source hashes and result hash), `prepared.json` / `engine.plan` (exported topology/workload), `control.json` (live observations/actions), raw TSV logs and `engine.stderr`. `status.json` identifies complete/failed runs. Reusing an output directory overwrites generated results; failed reruns remove prior success files. Tests skip the packet integration cases if the ns-3 environment or compiler is absent; a full Phase 2 validation requires those cases to run.
+## License and attribution
 
-See [Phase 2 behavior, acceptance evidence and limits](docs/PHASE2_STATUS.md) and [the scenario/controller contract](docs/PACKET_BACKEND.md). Packet accounting distinguishes explicit drops from packets still in flight at the horizon. TCP results report byte delivery and retransmissions separately from UDP datagrams.
-
-## Phase 3 QoS and routing comparisons
-
-Use the same environments or Docker image as above. No new dependencies are required.
-
-```bash
-.venv/bin/python compare_policies.py --case all --seed 7 --output runs/phase3
-.venv/bin/python run_packet_scenario.py --scenario scenarios/phase3/burst.json --policy congestion --output runs/burst
-.venv/bin/python -m tools.record_phase3_evidence
-```
-
-`qos: {}` enables weighted byte DRR for Control, Realtime (including STREAMING) and Bulk. Omit it to retain FIFO. The five seeded workloads run with both propagation and congestion-aware Dijkstra using identical scheduling and traffic. Reports include deadline outcomes, class delay/goodput, Bulk fairness/service gaps and route changes. See [Phase 3 status, configuration, measured tradeoffs and Docker validation](docs/PHASE3_STATUS.md). These synthetic smoke comparisons are not the final calibrated research evaluation.
-
-## Phase 4 predictive routing
-
-The predictive controller uses orbital propagation and recent queue/service trends. It has no trained model or weights. Existing environments and the Docker image support it without new dependencies.
-
-```bash
-.venv/bin/python run_packet_scenario.py --scenario scenarios/phase4/orbital_transition.json --policy predictive --output runs/predictive-orbit
-.venv/bin/python compare_predictive.py --output runs/phase4 --evidence runs/phase4/evidence.json
-```
-
-Inside Docker use `python` instead of `.venv/bin/python`. The comparison runs seven scenarios against propagation, congestion, current-QoS, lifetime-only, queue-forecast and combined predictive routing. Add `prediction: {}` alongside `qos: {}` for matched class-routing runs. Outputs include class route tables, forecasts, forecast errors and explicit fallback decisions. See [Phase 4 configuration, contract, evidence and limitations](docs/PHASE4_STATUS.md). Prediction improves some outcomes and worsens others; the report includes both.
-
-## Phase 5 environment — congested orbital scenarios
-
-The connectivity model and link rates were corrected so congestion and handovers occur on the real 200-satellite topology instead of only on five-node fixtures. Satellites now hold two same-plane links plus at most one per adjacent plane, every cross-plane link is reciprocal, and a ground station tracks a bounded number of satellites (`ground_links_per_station`). Link rates are differentiated: `links.isl_capacity_bps` for inter-satellite links and `links.ground_capacity_bps` for ground access.
-
-`scenarios/phase5/` contains normal, burst and overload cases generated by `packet_backend/orbital_workloads.py`. They use reduced absolute rates so congestion appears at a manageable packet count; the ISL:ground ratio is an experimental assumption.
-
-```bash
-.venv/bin/python run_packet_scenario.py --scenario scenarios/phase5/normal.json --policy predictive --output runs/phase5-normal
-.venv/bin/python compare_predictive.py --scenario scenarios/phase5/overload.json --policies propagation congestion predictive --output runs/phase5-overload
-```
-
-Run the full suite with `.venv/bin/python -m unittest discover -s tests -v`. See [the handoff](docs/PHASE5_HANDOFF.md) for the control interface, measured baselines, runtime and memory limits, and the remaining fidelity caveats.
-
-## Terminal and timing fidelity
-
-The refined Phase 5 scenarios use finite satellite ground-beam/ISL terminal budgets, persistent cross-plane pairing, attachment hysteresis and acquisition delays. They start 12 seconds into the orbit so a handover occurs during a short episode. Topology updates every 100 ms and control every 50 ms, making the 300 ms bursts observable. Gateways are endpoints by default in these fixtures; legacy scenarios can explicitly allow gateway transit.
-
-```bash
-.venv/bin/python fidelity_experiments.py --quick
-.venv/bin/python fidelity_experiments.py --evidence runs/fidelity/evidence.json
-```
-
-The full command also tests doubled capacity with fixed or proportionally increased demand. Absolute rates, acquisition times and terminal counts remain configurable assumptions. See [fidelity settings, reference checks and evidence](docs/FIDELITY_UPDATE.md).
-
-## Headless baseline
-
-Tested with Python 3.12 on Linux. No display or runtime downloads are needed after dependency installation.
-
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python run_scenario.py --scenario scenarios/baseline.json --output runs/baseline
-.venv/bin/python -m unittest discover -s tests -v
-```
-
-Edit `scenarios/baseline.json` to set the epoch (timezone required), constellation, seed, run duration, update interval, ground stations and flows. The seed is recorded; the current workload is deterministic and does not draw random traffic. `setup.py` is an inherited utility module, not an installation script.
-
-The saved baseline has 200 satellites, two ground stations, a five-second run and a 24 kbps Bulk flow. It generates ten 1500-byte packets and finds a route for all ten. A final partial update interval is supported.
-
-Outputs in the selected run directory:
-
-- `constellation.csv`: generated OMM input with a fixed epoch.
-- `results.json`: scenario, time-indexed topology, link distances in km, named route samples and generation/route counts.
-- `manifest.json`: result SHA-256, Git revision/dirty flag and installed dependency versions.
-
-Repeat the command with another output directory to compare result hashes. Results are intended to repeat within the pinned software environment; cross-platform floating-point identity is not guaranteed. `datacollection.py` is a compatibility runner for this scenario and no longer overwrites the historical pickle. JSON route samples are shortest-path examples, not RL experience or delivery measurements.
-
-## Visualiser
-
-```bash
-.venv/bin/pip install -r requirements-viz.txt
-.venv/bin/python test.py
-```
-
-`test.py` is the inherited interactive viewer (despite its filename), not a test suite. It shares `LogicalTopology` with headless runs, and uses the existing `customconstellation.csv`, up to 100 satellites and six default stations. It displays live wall-clock orbital time; the headless runner is authoritative for saved experiments. `opengl_sim.py` redirects to the same viewer using `starlink.csv`. A working OpenGL display is required; interactive rendering was not validated in this headless session.
-
-## Historical Phase 1 packet-engine exercise
-
-Keep ns-3 in a separate virtual environment; ns-3 owns all packet timing in this probe.
-
-```bash
-python3 -m venv /tmp/leo-ns3-venv
-/tmp/leo-ns3-venv/bin/pip install -r requirements-ns3.txt
-/tmp/leo-ns3-venv/bin/python tools/probe_ns3.py --baseline runs/baseline/results.json
-```
-
-See [the backend decision and evidence](docs/PACKET_ENGINE_DECISION.md), [Phase 1 status and assumptions](docs/PHASE1_STATUS.md), and [the research gap matrix](docs/RESEARCH_GAPS.md). The original [phased plan](LEO_Routing_Phased_Implementation_Plan.md) remains the roadmap; the Phase 2 implementation supersedes the probe-only status in the historical decision record. No A*/Bellman-Ford benchmark is implemented.
+See [LICENSE](LICENSE). Third-party engine/library licenses and any acquired dataset terms still apply. Bundled textures, fonts and icons have [asset notices](web/public/assets/ATTRIBUTION.md). Measurement data has not been bundled; verify the selected dataset's license before redistribution.

@@ -213,4 +213,13 @@ runs/
 
 # Local tooling and planning notes
 .commandcode/
-LEO_Routing_Phased_Implementation_Plan.md
+.local/
+
+# Mission Control build and browser artifacts
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+web/*.tsbuildinfo
+!web/src/lib/
+!web/src/lib/**

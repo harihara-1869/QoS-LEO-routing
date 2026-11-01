@@ -2,7 +2,7 @@
 import argparse
 import json
 from pathlib import Path
-from compare_policies import compare
+from experiments.compare_baselines import compare
 from packet_backend.workloads import CASES
 
 
@@ -31,7 +31,7 @@ def record(output, evidence, seed):
 if __name__ == '__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,default=Path('runs/phase3'))
-    parser.add_argument('--evidence',type=Path,default=Path('docs/evidence/phase3.json'))
+    parser.add_argument('--evidence',type=Path,default=Path('runs/phase3/evidence.json'))
     parser.add_argument('--seed',type=int,default=7)
     args=parser.parse_args()
     record(args.output,args.evidence,args.seed)

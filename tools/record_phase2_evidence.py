@@ -9,7 +9,7 @@ from pathlib import Path
 import subprocess
 
 from packet_backend.build import ROOT, build_engine
-from run_packet_scenario import run
+from experiments.run import run
 
 
 def main():
