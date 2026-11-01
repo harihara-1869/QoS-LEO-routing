@@ -71,6 +71,28 @@ def check_limits(c):
             or d / s > 4000
         ):
             raise ValueError("Use at most 4,000 physical/control updates")
+    for f in c.get("flows", []):
+        fid = f.get("flow_id", "?")
+        end = f.get("end_time")
+        start = f.get("start_time", 0)
+        if (
+            isinstance(end, bool)
+            or not isinstance(end, (int, float))
+            or not math.isfinite(end)
+            or end <= 0
+        ):
+            raise ValueError(f"Flow {fid} needs a positive end time")
+        if (
+            isinstance(start, bool)
+            or not isinstance(start, (int, float))
+            or not math.isfinite(start)
+            or start < 0
+        ):
+            raise ValueError(f"Flow {fid} needs a nonnegative start time")
+        if not start < min(end, d):
+            raise ValueError(
+                f"Flow {fid} must start before its end time and the mission duration"
+            )
     packets = sum(
         max(0, min(f.get("end_time", d), d) - f.get("start_time", 0))
         * f.get("data_rate_bps", 0)

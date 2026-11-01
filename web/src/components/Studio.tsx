@@ -13,7 +13,12 @@ import {
   Upload,
 } from "lucide-react";
 import type { Replay, Scenario, Traffic } from "../lib/types";
-import { estimate, format, validateScenario } from "../lib/model";
+import {
+  estimate,
+  format,
+  randomizeGroundPairs,
+  validateScenario,
+} from "../lib/model";
 import { download } from "../lib/api";
 
 export function Studio({
@@ -210,9 +215,11 @@ export function Studio({
               (v) =>
                 mutate((d) => {
                   d.duration_s = v;
-                  d.flows.forEach((f) => {
-                    f.end_time = Math.min(f.end_time, v);
-                  });
+                  if (v > 0) {
+                    d.flows.forEach((f) => {
+                      if (f.end_time > v) f.end_time = v;
+                    });
+                  }
                 }),
               "s",
               0.1,
@@ -519,9 +526,17 @@ export function Studio({
             <Plus size={14} />
             Add traffic flow
           </button>
+          <button
+            className="secondary-button full"
+            onClick={() => onChange(randomizeGroundPairs(scenario))}
+          >
+            <RefreshCw size={14} />
+            Randomize ground pairs · seed {scenario.seed}
+          </button>
           <div className="info-note">
-            Default targets: Control 50 ms · Realtime 100 ms · Bulk 20 kbps.
-            Override class and per-flow targets in scenario JSON.
+            Each flow is one ground-station-to-ground-station path. Randomize
+            assigns distinct pairs from the current seed; change the seed and
+            randomize again for different pairings.
           </div>
         </>
       )}

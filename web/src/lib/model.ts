@@ -93,6 +93,50 @@ export function estimate(c: Scenario) {
   };
 }
 
+/** Return a reason a flow's timing is invalid, or null when all flows are usable. */
+export function flowTimingError(c: Scenario): string | null {
+  for (const f of c.flows) {
+    if (!Number.isFinite(f.end_time) || f.end_time <= 0)
+      return `Flow ${f.flow_id} has end time ${f.end_time}; it must be greater than 0.`;
+    if (!(f.start_time < Math.min(f.end_time, c.duration_s)))
+      return `Flow ${f.flow_id} must start before its end time and the mission duration.`;
+  }
+  return null;
+}
+
+/** Deterministic PRNG (mulberry32) so a seed always yields the same traffic. */
+function seeded(seed: number) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Reassign each flow to a distinct ground-station pair, shuffled by the seed. */
+export function randomizeGroundPairs(c: Scenario): Scenario {
+  const names = c.ground_stations.map((g) => g[0]);
+  if (names.length < 2) return c;
+  const pairs: [string, string][] = [];
+  for (const a of names)
+    for (const b of names) if (a !== b) pairs.push([a, b]);
+  const rand = seeded(c.seed);
+  for (let i = pairs.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  }
+  return {
+    ...c,
+    flows: c.flows.map((f, i) => {
+      const [src, dst] = pairs[i % pairs.length];
+      return { ...f, src, dst };
+    }),
+  };
+}
+
 /** Reject malformed editor imports before they can replace a usable draft. */
 export function validateScenario(value: unknown): Scenario {
   const c = value as Scenario;
