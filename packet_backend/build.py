@@ -20,7 +20,7 @@ def build_engine(ns3_python: str | None = None) -> Path:
     try:
         result = subprocess.run([python, '-c', query], check=True, capture_output=True, text=True)
     except (OSError, subprocess.CalledProcessError) as exc:
-        raise RuntimeError('Install requirements-ns3.txt in .venv-ns3 or set LEO_NS3_PYTHON to that environment') from exc
+        raise RuntimeError('Install requirements/ns3.txt in .venv-ns3 or set LEO_NS3_PYTHON to that environment') from exc
     info = json.loads(result.stdout)
     if info['version'] != VERSION:
         raise ValueError(f'Expected ns3=={VERSION}; found {info["version"]}')

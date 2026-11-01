@@ -115,6 +115,7 @@ public:
     auto& record = packets.at(id.value);
     if (record.status != "in_flight") return;
     record.status = "dropped"; record.reason = reason; record.ended = Now();
+    Event("udp_dropped", record.flow, id.value, -1, record.size, reason);
   }
   void QueueDrop(uint32_t link, uint32_t dir, Ptr<const Packet> p) {
     const std::string reason = links[link].active ? "queue_overflow" : "link_down_queued";
@@ -164,6 +165,7 @@ public:
       if (record.status != "in_flight") throw std::runtime_error("Invalidated UDP packet delivered");
       record.status = "delivered"; record.reason = "-"; record.ended = Now();
       record.path.push_back(flows[index].dst);
+      Event("udp_delivered", flows[index].id, id.value, -1, p->GetSize());
       flows[index].received += p->GetSize();
     }
   }
@@ -175,6 +177,7 @@ public:
     PacketId tag; tag.value = id; p->AddPacketTag(tag);
     ServiceClass service; service.value=f.serviceClass; p->AddPacketTag(service);
     packets.emplace(id, PacketRecord{f.id, f.size, Now(), -1, "in_flight", "horizon", {f.src}});
+    Event("udp_created", f.id, id, -1, f.size);
     f.attempted++;
     if (f.socket->SendTo(p, 0, InetSocketAddress(identities[f.dst], 9000+index)) < 0) Finish(p, "no_route");
     else f.accepted += f.size;
@@ -246,6 +249,7 @@ public:
         l.dev[0]->GetChannel()->SetAttribute("Delay", TimeValue(Seconds(l.delay)));
       }
     }
+    events.flush();
     // Synchronous control handshake while ns-3 is paused inside this event.
     std::cout << "STATE " << std::setprecision(17) << Now() << ' ' << links.size()*2 << '\n';
     for (uint32_t i=0; i<links.size(); ++i)

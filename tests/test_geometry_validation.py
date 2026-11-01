@@ -13,10 +13,10 @@ import numpy as np
 from skyfield.api import load, wgs84
 from skyfield.framelib import itrs
 
-from logic_module import (EARTH_RADIUS, LinkType, LogicalConfig, LogicalTopology,
+from constellation.topology import (EARTH_RADIUS, LinkType, LogicalConfig, LogicalTopology,
                           link_clear_of_earth)
 from packet_backend.scenario import C_KM_S, prepare
-from setup import generate_omm_csv, get_satellite_data
+from constellation.omm import generate_omm_csv, get_satellite_data
 
 MU = 398600.4418
 

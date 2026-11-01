@@ -14,7 +14,7 @@ from packet_backend.prediction_metrics import summarize_predictions
 from packet_backend.predictive import PredictivePolicy
 from packet_backend.qos import CLASSES, normalize
 from packet_backend.workloads import workload
-from run_packet_scenario import run
+from experiments.run import run
 
 
 def observation():
@@ -130,7 +130,7 @@ class ForecastUnitTests(unittest.TestCase):
             validate_routes({(0,0,3):1,(0,1,3):0},observation())
 
     def test_orbital_lifetime_brackets_actual_elevation_loss(self):
-        from setup import generate_omm_csv, get_satellite_data
+        from constellation.omm import generate_omm_csv, get_satellite_data
         from skyfield.api import load, wgs84
         with tempfile.TemporaryDirectory() as temp:
             filename=Path(temp)/'orbit.csv'

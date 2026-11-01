@@ -9,12 +9,12 @@ import numpy as np
 from skyfield.api import EarthSatellite,load
 from skyfield.sgp4lib import TEME
 
-from logic_module import LogicalConfig,LinkType
-from terminal_model import TerminalState
+from constellation.topology import LogicalConfig,LinkType
+from constellation.terminals import TerminalState
 from packet_backend.controller import shortest_routes,validate_routes,resolve_policy
 from packet_backend.orbital_workloads import orbital_workload
 from packet_backend.scenario import prepare
-from fidelity_experiments import scaled_scenario
+from experiments.fidelity import scaled_scenario
 
 
 def node(name):
@@ -52,7 +52,7 @@ class TerminalTests(unittest.TestCase):
         with self.assertRaises(ValueError):t.admit([edge],.1)
 
     def test_validation(self):
-        from logic_module import LogicalTopology
+        from constellation.topology import LogicalTopology
         for key,value in [('ground_acquisition_s',-1),('ground_hysteresis_deg',float('nan')),
                           ('ground_beams_per_satellite',0),('initial_links_ready',1)]:
             with self.subTest(key=key),self.assertRaises(ValueError):
