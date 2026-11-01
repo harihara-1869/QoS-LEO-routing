@@ -55,6 +55,7 @@ import type {
 import { api, download } from "./lib/api";
 import {
   CLASS_COLORS,
+  flowTimingError,
   format,
   frameAt,
   scenarioDiff,
@@ -490,6 +491,12 @@ function App() {
   followRef.current = followLive;
   async function launch() {
     if (!draft || !online) return;
+    const timing = flowTimingError(draft);
+    if (timing) {
+      notify(`${timing} Fix the flow timing in Studio before launching.`);
+      setView("studio");
+      return;
+    }
     setBusy(true);
     try {
       const record = await api.launch(

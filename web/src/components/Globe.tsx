@@ -183,6 +183,18 @@ function Network({ run, time, flow, selected, links }: GlobeProps) {
           />
         </lineSegments>
       )}
+      {a.routes.map((r) =>
+        r.id === flow || r.path.length < 2 ? null : (
+          <Line
+            key={`route-${r.id}`}
+            points={r.path.filter((i) => positions[i]).map((i) => positions[i])}
+            color={CLASS_COLORS[r.flow_type]}
+            lineWidth={0.8}
+            transparent
+            opacity={0.25}
+          />
+        ),
+      )}
       {current && current.path.length > 1 && (
         <Line
           points={current.path
