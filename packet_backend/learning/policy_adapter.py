@@ -26,12 +26,15 @@ class LearnedPolicy:
                  checkpoint_path: Path | str,
                  prediction_config: dict | None = None,
                  orbital_forecaster = None,
-                 device: str = "cpu"):
+                 device: str = "cpu",
+                 strict: bool = True,
+                 name: str | None = None):
         self.checkpoint_path = Path(checkpoint_path)
         self.prediction_config = prediction_config or {}
         self.orbital = orbital_forecaster
         self.device = device
-        self.name = f"learned.nscrpo.{self.checkpoint_path.stem}"
+        self.strict = strict
+        self.name = name or f"learned.nscrpo.{self.checkpoint_path.stem}"
         self.last_diagnostics = {}
 
         # Verify manifest
@@ -51,6 +54,14 @@ class LearnedPolicy:
         state_dict = torch.load(self.checkpoint_path, map_location=self.device, weights_only=True)
         self.model.load_state_dict(state_dict)
         self.model.eval()  # Strictly frozen evaluation mode
+
+        param_count = sum(p.numel() for p in self.model.parameters())
+        print(f"[NS-CRPO] Checkpoint loaded successfully:")
+        print(f"         - Path        : {self.checkpoint_path}")
+        print(f"         - SHA-256     : {self.manifest.get('weight_hash')}")
+        print(f"         - Architecture: {self.manifest.get('architecture', type(self.model).__name__)}")
+        print(f"         - Parameters  : {param_count:,}")
+        print(f"         - Status      : Verified & Frozen (strict={self.strict})")
 
     def reset(self):
         self.decoder.reset()
@@ -93,6 +104,8 @@ class LearnedPolicy:
             return routes
 
         except Exception as exc:
+            if self.strict:
+                raise RuntimeError(f"NS-CRPO inference failed: {exc}") from exc
             # Documented heuristic fallback if any unexpected condition occurs
             fallback_routes = congestion_routes(observation)
             expanded_fallback = {(c, s, d): nxt for c in range(3) for (s, d), nxt in fallback_routes.items()}

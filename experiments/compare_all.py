@@ -24,8 +24,23 @@ def evaluate_suite(scenario_path: Path, output_dir: Path, checkpoint_path: Path 
     policies_to_run = list(HEURISTIC_POLICIES)
     policies_to_run.append("simpler_rl")
 
-    if checkpoint_path and Path(checkpoint_path).exists():
-        policies_to_run.append(f"learned:{checkpoint_path}")
+    # Locate and validate NS-CRPO checkpoint
+    if checkpoint_path is None:
+        for candidate in (
+            Path("results/learning_nscrpo/best_model.pt"),
+            Path("runs/learning_nscrpo/best_model.pt"),
+            Path("/kaggle/working/results/learning_nscrpo/best_model.pt"),
+            Path("/kaggle/working/runs/learning_nscrpo/best_model.pt"),
+        ):
+            if candidate.exists():
+                checkpoint_path = candidate
+                break
+
+    if checkpoint_path is not None:
+        checkpoint_path = Path(checkpoint_path)
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"Specified NS-CRPO checkpoint not found: {checkpoint_path}")
+        policies_to_run.append(f"ns_crpo:{checkpoint_path}")
 
     results_table = []
     audit_table = []

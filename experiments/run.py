@@ -40,8 +40,8 @@ def _run(
     class_routing = (
         "prediction" in config
         or isinstance(policy, PredictivePolicy)
-        or (isinstance(policy, str) and (policy in MODES or policy == 'simpler_rl' or policy.startswith('learned')))
-        or (hasattr(policy, "name") and ("learned" in getattr(policy, "name", "") or "simpler_rl" in getattr(policy, "name", "")))
+        or (isinstance(policy, str) and (policy in MODES or policy == 'simpler_rl' or policy.startswith('learned') or policy.startswith('ns_crpo') or policy == 'ns_crpo'))
+        or (hasattr(policy, "name") and ("learned" in getattr(policy, "name", "") or "simpler_rl" in getattr(policy, "name", "") or "ns_crpo" in getattr(policy, "name", "")))
     )
     plan = prepare(config, output, class_routing=class_routing)
     policy = resolve_policy(policy, plan, output)

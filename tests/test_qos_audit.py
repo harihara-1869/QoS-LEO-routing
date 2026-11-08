@@ -333,8 +333,9 @@ class QosAuditUnitTests(unittest.TestCase):
             self.assertTrue(summary_json.exists())
             records = json.loads(summary_json.read_text())
 
-            # Check that heuristic policies were evaluated
+            # Check that heuristic and ns_crpo policies were evaluated
             self.assertIn("propagation", records)
+            self.assertIn("ns_crpo", records)
             prop = records["propagation"]
             self.assertEqual(prop["summary"]["Control On-Time (%)"], "75.0%")
             self.assertEqual(prop["summary"]["Control Deliv On-Time (%)"], "90.0%")
@@ -346,6 +347,96 @@ class QosAuditUnitTests(unittest.TestCase):
             self.assertEqual(prop["aggregate"]["delivered"], 800)
             self.assertEqual(prop["aggregate"]["dropped"], 80)
             self.assertEqual(prop["aggregate"]["route_churn"], 15)
+
+            nscrpo = records["ns_crpo"]
+            self.assertEqual(nscrpo["summary"]["Policy"], "ns_crpo")
+            self.assertEqual(nscrpo["summary"]["Control On-Time (%)"], "75.0%")
+
+    def test_ns_crpo_checkpoint_smoke_test(self):
+        """Smoke test verifying NS-CRPO checkpoint integrity, potential bounds, decoder, and loop-free routing."""
+        import hashlib
+        import json
+        import numpy as np
+        from pathlib import Path
+        ckpt_path = Path("results/learning_nscrpo/best_model.pt")
+        if not ckpt_path.exists():
+            self.skipTest("Checkpoint file results/learning_nscrpo/best_model.pt not present")
+
+        try:
+            import torch
+            from packet_backend.learning.models import NeuroSymbolicActorCritic
+            from packet_backend.learning.policy_adapter import LearnedPolicy
+            from packet_backend.learning.encoder import GraphObservationEncoder, NeuroSymbolicTreeDecoder
+            from packet_backend.controller import validate_routes
+        except ImportError:
+            self.skipTest("PyTorch not installed in this Python environment")
+
+        # 1. SHA-256 hash
+        hasher = hashlib.sha256()
+        with ckpt_path.open("rb") as f:
+            while chunk := f.read(65536):
+                hasher.update(chunk)
+        sha256 = hasher.hexdigest()
+
+        # 2. Load policy in strict mode
+        policy = LearnedPolicy(ckpt_path, strict=True, name="ns_crpo")
+        model = policy.model
+        params = sum(p.numel() for p in model.parameters())
+
+        self.assertEqual(params, 4331803)
+        self.assertEqual(sha256, policy.manifest.get("weight_hash"))
+
+        # 3. Create dummy observation matching normal.json topology
+        scratch = Path("results/learning_nscrpo/sim_scratch")
+        if not (scratch / "prepared.json").exists():
+            self.skipTest("sim_scratch/prepared.json not present")
+
+        plan = json.loads((scratch / "prepared.json").read_text())
+        nodes = plan["nodes"]
+        links = plan["snapshots"][0]["links"]
+        destinations = list({f["dst"] for f in plan["flows"]})
+
+        obs = {
+            "time_s": 0.5,
+            "nodes": nodes,
+            "links": [{"id": l["id"], "a": plan["links"][l["id"]]["a"], "b": plan["links"][l["id"]]["b"],
+                       "delay_s": l["delay_s"], "capacity_bps": plan["links"][l["id"]]["capacity_bps"]}
+                      for l in links],
+            "destinations": destinations,
+            "queues": [{"link_id": l["id"], "direction": d, "bytes": 0, "packets": 0,
+                        "classes": {c: {"bytes": 0, "packets": 0} for c in ("CONTROL", "REALTIME", "BULK")}}
+                       for l in links for d in (0, 1)],
+            "non_transit_nodes": [nodes.index(name) for name in ("GS_INDIA", "GS_USA", "GS_BRAZIL", "GS_AUSTRALIA")],
+        }
+
+        # 4. Generate potentials and test bounds
+        encoder = GraphObservationEncoder()
+        flat_state = encoder.encode(obs)
+        state_t = torch.from_numpy(flat_state).unsqueeze(0)
+
+        with torch.no_grad():
+            action_learned, _, _, _, _ = model.get_action(state_t, deterministic=True)
+            potentials_learned = action_learned.squeeze(0).numpy()[:len(obs["links"]) * 3].reshape((len(obs["links"]), 3))
+
+        self.assertTrue(np.all(np.isfinite(potentials_learned)))
+        self.assertTrue(np.all(potentials_learned >= 0.0))
+        self.assertTrue(np.all(potentials_learned <= 1.0))
+
+        # Check distinct from untrained model
+        torch.manual_seed(42)
+        untrained_model = NeuroSymbolicActorCritic(state_dim=16100, num_edges=388)
+        with torch.no_grad():
+            action_untrained, _, _, _, _ = untrained_model.get_action(state_t, deterministic=True)
+            potentials_untrained = action_untrained.squeeze(0).numpy()[:len(obs["links"]) * 3].reshape((len(obs["links"]), 3))
+
+        diff = float(np.abs(potentials_learned - potentials_untrained).mean())
+        self.assertGreater(diff, 0.05)
+
+        # 5. Decode routes and validate loop-free
+        routes = policy(obs)
+        self.assertFalse(policy.last_diagnostics.get("fallback_triggered", False))
+        validate_routes(routes, obs)
+        self.assertGreater(len(routes), 0)
 
 
 if __name__ == '__main__':

@@ -72,8 +72,13 @@ def resolve_policy(policy, plan=None, output=None):
     if policy == 'simpler_rl':
         from packet_backend.learning.simpler_rl import SimplerRLPolicy
         return SimplerRLPolicy()
-    if policy.startswith('learned:'):
-        checkpoint = policy.split(':', 1)[1]
+    if policy.startswith('learned:') or policy.startswith('ns_crpo:') or policy == 'ns_crpo':
+        if ':' in policy:
+            checkpoint = policy.split(':', 1)[1]
+            policy_name = policy.split(':', 1)[0]
+        else:
+            checkpoint = 'results/learning_nscrpo/best_model.pt'
+            policy_name = 'ns_crpo'
         from packet_backend.learning.policy_adapter import LearnedPolicy
         from packet_backend.prediction import OrbitalForecaster
         orbital = None
@@ -83,7 +88,7 @@ def resolve_policy(policy, plan=None, output=None):
             orbital = OrbitalForecaster(get_satellite_data(csv_file=output/'constellation.csv'), source['epoch'],
                                         source['links'], source['ground_stations'], plan['prediction'],
                                         orbital_start_s=source.get('orbital_start_s',0), topology_step_s=source['step_s'])
-        return LearnedPolicy(checkpoint, plan.get('prediction', {}), orbital)
+        return LearnedPolicy(checkpoint, plan.get('prediction', {}), orbital, strict=True, name=policy_name)
     if policy not in POLICIES:
         raise ValueError(f'Unknown routing policy: {policy}')
     return POLICIES[policy]

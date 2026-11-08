@@ -1,0 +1,21 @@
+{
+  "schema_version": "leo_rl_v1",
+  "architecture": "NeuroSymbolicActorCritic",
+  "weight_hash": "214c3b700643ab740844cb89c9b0c76c46e00951d77542d6547f935ab2ba7d03",
+  "weight_file": "final_model.pt",
+  "weights_mode": "frozen",
+  "state_dim": 16100,
+  "num_edges": 388,
+  "encoder_version": "v1_compact_graph",
+  "action_space": "neuro_symbolic_potential_v1",
+  "scenario_compatibility": [
+    "normal",
+    "walker_200_satellites"
+  ],
+  "hyperparameters": {
+    "gamma": 0.99,
+    "clip_eps": 0.2,
+    "target_ctrl_violation": 0.0,
+    "target_rt_violation": 0.01
+  }
+}
