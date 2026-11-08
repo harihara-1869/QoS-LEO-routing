@@ -1,0 +1,5 @@
+# PyTorch and RL dependencies for Phase 5 learned controller
+torch>=2.2.0
+gymnasium>=0.29.1
+scipy>=1.12.0
+

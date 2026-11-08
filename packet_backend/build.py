@@ -5,13 +5,15 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = '3.44.post0'
 
 
 def build_engine(ns3_python: str | None = None) -> Path:
-    python = ns3_python or os.environ.get('LEO_NS3_PYTHON', str(ROOT / '.venv-ns3/bin/python'))
+    default_python = str(ROOT / '.venv-ns3/bin/python') if (ROOT / '.venv-ns3/bin/python').exists() else sys.executable
+    python = ns3_python or os.environ.get('LEO_NS3_PYTHON', default_python)
     query = (
         'import importlib.metadata,json; from pathlib import Path; '
         'd=importlib.metadata.distribution("ns3"); '
