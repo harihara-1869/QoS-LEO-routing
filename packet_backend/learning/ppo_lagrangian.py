@@ -52,12 +52,12 @@ if HAS_TORCH:
                      model: NeuroSymbolicActorCritic,
                      actor_lr: float = 3e-4,
                      critic_lr: float = 1e-3,
-                     dual_lr: float = 0.05,
+                     dual_lr: float = 1.0,
                      gamma: float = 0.99,
                      gae_lambda: float = 0.95,
                      clip_eps: float = 0.2,
-                     target_ctrl_violation: float = 0.02,
-                     target_rt_violation: float = 0.05,
+                     target_ctrl_violation: float = 0.0,
+                     target_rt_violation: float = 0.01,
                      device: str = "cpu"):
             self.model = model.to(device)
             self.device = device
@@ -158,10 +158,11 @@ if HAS_TORCH:
                     self.actor_optimizer.step()
                     policy_losses.append(actor_loss.item())
 
-                    # Critic MSE update
-                    c_loss = nn.MSELoss()(v_p, ret_primal[batch_idx]) + \
-                             nn.MSELoss()(c_c, ret_ctrl[batch_idx]) + \
-                             nn.MSELoss()(c_r, ret_rt[batch_idx])
+                    # Critic update with SmoothL1 (Huber) loss for numerical stability
+                    criterion = nn.SmoothL1Loss(beta=1.0)
+                    c_loss = criterion(v_p, ret_primal[batch_idx]) + \
+                             criterion(c_c, ret_ctrl[batch_idx]) + \
+                             criterion(c_r, ret_rt[batch_idx])
 
                     self.critic_optimizer.zero_grad()
                     c_loss.backward()

@@ -213,8 +213,8 @@ class SatelliteRoutingEnv:
             # Realtime
             delta_rejected_rt += max(0, curr_c.get('REALTIME', {}).get('rejected_bytes', 0) - prev_c.get('REALTIME', {}).get('rejected_bytes', 0))
 
-        # Reward formulation: Maximize delivered Bulk throughput, penalize bulk loss
-        reward = (delta_served_bulk / 1e5) - (2.0 * delta_rejected_bulk / 1e5)
+        # Reward formulation: Delivered Bulk throughput in MB, penalize bulk loss
+        reward = (delta_served_bulk / 1e6) - (3.0 * delta_rejected_bulk / 1e6)
 
         # Constraint costs: Penalty for Control/Realtime packet rejections
         cost_ctrl = float(delta_rejected_ctrl > 0)

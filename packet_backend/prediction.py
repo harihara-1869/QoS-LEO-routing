@@ -120,8 +120,7 @@ class OrbitalForecaster:
         if tick < self.last_tick:
             from constellation.topology import LogicalTopology, LogicalConfig
             self.model.topology = LogicalTopology(self._satellites,LogicalConfig(**self._links),self._ground)
-            self.cache.clear()
-            self.last_tick = -1
+            self.last_tick = max([k for k in self.cache if k <= tick], default=-1)
         while self.last_tick < tick:
             self.last_tick += 1
             t = self.model.get_sim_time(self.last_tick*self.topology_step_s)

@@ -99,7 +99,7 @@ class NeuroSymbolicTreeDecoder:
     """Decodes continuous learned edge potentials into strictly loop-free routing trees."""
 
     def __init__(self,
-                 potential_scale: float = 0.05,
+                 potential_scale: float = 0.20,
                  drain_horizon_s: float = 1.0,
                  ground_acq_s: float = 0.15,
                  change_penalty_s: float = 0.005):

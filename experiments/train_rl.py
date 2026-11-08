@@ -105,20 +105,20 @@ def parse_args(argv=None):
     parser.add_argument(
         "--dual-lr",
         type=float,
-        default=0.05,
-        help="Learning rate for dual multipliers (default: 0.05)",
+        default=1.0,
+        help="Learning rate for dual multipliers (default: 1.0)",
     )
     parser.add_argument(
         "--target-ctrl",
         type=float,
-        default=0.02,
-        help="Control packet violation tolerance (default: 0.02)",
+        default=0.0,
+        help="Control packet violation tolerance (default: 0.0, zero tolerance)",
     )
     parser.add_argument(
         "--target-rt",
         type=float,
-        default=0.05,
-        help="Realtime packet violation tolerance (default: 0.05)",
+        default=0.01,
+        help="Realtime packet violation tolerance (default: 0.01)",
     )
     parser.add_argument(
         "--no-plots",
@@ -327,7 +327,7 @@ def train(
     init_state, info = env.reset(seed=seed)
     state_dim = len(init_state)
     num_edges = len(info["observation"]["links"])
-    num_flows = len(info["observation"].get("active_flows", []))
+    num_flows = len(env.plan["flows"]) if hasattr(env, "plan") and env.plan else len(info["observation"].get("active_flows", []))
 
     print(f"[Training] Environment initialized successfully:")
     print(f"           - State Dimension : {state_dim}")
@@ -361,7 +361,7 @@ def train(
     header = (
         f"{'Ep':>4} | {'Bulk Return':>11} | {'Steps':>5} | "
         f"{'Ctrl Viol':>9} | {'RT Viol':>7} | "
-        f"{'μ_ctrl':>7} | {'μ_rt':>7} | "
+        f"{'μ_ctrl':>8} | {'μ_rt':>8} | "
         f"{'P.Loss':>8} | {'C.Loss':>8} | {'Bulk (MB)':>9}"
     )
     print("\n" + "-" * len(header))
@@ -449,7 +449,7 @@ def train(
         print(
             f"{ep:>4} | {ep_reward:>11.2f} | {steps:>5} | "
             f"{ep_ctrl_violations:>9} | {ep_rt_violations:>7} | "
-            f"{trainer.mu_ctrl:>7.3f} | {trainer.mu_rt:>7.3f} | "
+            f"{trainer.mu_ctrl:>8.4f} | {trainer.mu_rt:>8.4f} | "
             f"{lp_str} | {lc_str} | {bulk_mb_str}"
         )
 
