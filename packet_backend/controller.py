@@ -208,9 +208,11 @@ def execute(binary: Path, plan: dict, output: Path, policy=shortest_routes, time
                     record['links'] = [{'id':e['id'],'delay_s':e['delay_s']} for e in links]
                     if 'prediction' in record:
                         report = record['prediction']
-                        report['queue_forecasts'] = [{**{k:q[k] for k in ('link_id','direction','at_s')},
-                                                     'classes':{name:{k:v[k] for k in ('current_bytes','predicted_bytes')} for name,v in q['classes'].items()}} for q in report['queue_forecasts']]
-                        report['link_forecasts'] = [{k:e[k] for k in ('link_id','lifetime_upper_s','samples')} for e in report['link_forecasts']]
+                        if 'queue_forecasts' in report:
+                            report['queue_forecasts'] = [{**{k:q[k] for k in ('link_id','direction','at_s')},
+                                                         'classes':{name:{k:v[k] for k in ('current_bytes','predicted_bytes')} for name,v in q['classes'].items()}} for q in report['queue_forecasts']]
+                        if 'link_forecasts' in report:
+                            report['link_forecasts'] = [{k:e[k] for k in ('link_id','lifetime_upper_s','samples')} for e in report['link_forecasts']]
                 records.append(record)
             if read()!='DONE':
                 raise RuntimeError('Engine did not finish cleanly')
