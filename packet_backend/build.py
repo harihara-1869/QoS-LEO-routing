@@ -52,3 +52,7 @@ def build_engine(ns3_python: str | None = None) -> Path:
         binary.unlink(missing_ok=True)
         raise RuntimeError(f'Engine compilation failed; see {directory / "build.log"}')
     return binary
+
+
+ensure_engine = build_engine
+

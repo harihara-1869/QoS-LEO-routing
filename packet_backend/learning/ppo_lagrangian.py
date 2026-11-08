@@ -153,7 +153,7 @@ if HAS_TORCH:
                     actor_loss = -torch.min(surr1, surr2).mean() - 0.01 * entropy.mean()
 
                     self.actor_optimizer.zero_grad()
-                    actor_loss.backward()
+                    actor_loss.backward(retain_graph=True)
                     nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
                     self.actor_optimizer.step()
                     policy_losses.append(actor_loss.item())

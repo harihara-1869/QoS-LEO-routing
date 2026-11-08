@@ -105,9 +105,11 @@ if HAS_TORCH:
             log_probs = dist.log_prob(actions).sum(dim=-1)
             entropy = dist.entropy().sum(dim=-1)
 
-            v_primal = self.critic_primal(features).squeeze(-1)
-            c_control = self.critic_cost_control(features).squeeze(-1)
-            c_realtime = self.critic_cost_realtime(features).squeeze(-1)
+            # Detach features for critic updates to decouple graph backward passes
+            feat_detach = features.detach()
+            v_primal = self.critic_primal(feat_detach).squeeze(-1)
+            c_control = self.critic_cost_control(feat_detach).squeeze(-1)
+            c_realtime = self.critic_cost_realtime(feat_detach).squeeze(-1)
 
             return log_probs, entropy, v_primal, c_control, c_realtime
 

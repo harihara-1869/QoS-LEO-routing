@@ -9,7 +9,7 @@ import time
 from typing import Any, Dict, Tuple
 import numpy as np
 
-from packet_backend.build import ensure_engine
+from packet_backend.build import build_engine
 from packet_backend.controller import validate_routes
 from packet_backend.learning.encoder import GraphObservationEncoder, NeuroSymbolicTreeDecoder
 from packet_backend.prediction import OrbitalForecaster
@@ -67,16 +67,18 @@ class SatelliteRoutingEnv:
         if seed is not None:
             raw_scenario['seed'] = seed
 
-        self.binary = ensure_engine()
-        self.plan = prepare(raw_scenario, self.output_dir)
+        self.binary = build_engine()
+        self.plan = prepare(raw_scenario, self.output_dir, class_routing=True)
 
         # Initialize causal orbital forecaster if ephemeris available
         if self.plan['topology_source'] == 'skyfield_sgp4':
             from constellation.omm import get_satellite_data
+            from packet_backend.prediction import settings as prediction_settings
             source = self.plan['source_scenario']
+            pred_config = self.plan.get('prediction') or prediction_settings(raw_scenario.get('prediction'))
             self.orbital = OrbitalForecaster(
                 get_satellite_data(csv_file=self.output_dir / 'constellation.csv'),
-                source['epoch'], source['links'], source['ground_stations'], self.plan['prediction'],
+                source['epoch'], source['links'], source['ground_stations'], pred_config,
                 orbital_start_s=source.get('orbital_start_s', 0), topology_step_s=source['step_s']
             )
 
@@ -223,7 +225,14 @@ class SatelliteRoutingEnv:
         self.last_queues = curr_queues
 
         next_state = self.encoder.encode(next_obs, orbital_forecasts)
-        return next_state, reward, costs, False, False, {"observation": next_obs}
+        info = {
+            "observation": next_obs,
+            "delta_served_bulk": delta_served_bulk,
+            "delta_rejected_bulk": delta_rejected_bulk,
+            "delta_rejected_ctrl": delta_rejected_ctrl,
+            "delta_rejected_rt": delta_rejected_rt,
+        }
+        return next_state, reward, costs, False, False, info
 
     def close(self):
         if self.process:

@@ -51,8 +51,10 @@ def prepare(config: dict, output: Path, *, class_routing=False) -> dict:
         from constellation.topology import LogicalConfig
         from constellation.snapshots import TopologySnapshots
         step = positive(config['step_s'], 'step_s')
-        generate_omm_csv(str(output / 'constellation.csv'), **config['constellation'], epoch=config['epoch'])
-        satellites = get_satellite_data(csv_file=str(output / 'constellation.csv'))
+        csv_file = output / 'constellation.csv'
+        if not csv_file.exists():
+            generate_omm_csv(str(csv_file), **config['constellation'], epoch=config['epoch'])
+        satellites = get_satellite_data(csv_file=str(csv_file))
         orbital_start = positive(config.get('orbital_start_s',0), 'orbital_start_s', zero=True)
         sim = TopologySnapshots(satellites, config['epoch'], LogicalConfig(**config['links']), config['ground_stations'], orbital_start)
         for tick in range(math.ceil(duration / step)):

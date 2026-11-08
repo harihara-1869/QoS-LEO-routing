@@ -18,7 +18,7 @@ class GraphObservationEncoder:
         self.link_feat_dim = 16
         # Per flow: 5 features (class_id, rate, deadline, payload_size, active)
         self.flow_feat_dim = 5
-        self.total_dim = (self.max_links * self.link_feat_dim) + (self.max_flows * self.flow_feat_dim)
+        self.total_dim = (self.max_links * 2 * self.link_feat_dim) + (self.max_flows * self.flow_feat_dim)
 
     def encode(self, observation: dict, orbital_forecasts: dict | None = None) -> np.ndarray:
         now = observation['time_s']
@@ -160,16 +160,19 @@ class NeuroSymbolicTreeDecoder:
                 # 3. Proactive Orbital-Drain Barrier Potential
                 drain_penalty = 0.0
                 if orbital_forecasts and e_id in orbital_forecasts:
-                    lt = orbital_forecasts[e_id].get('lifetime_lower_s')
-                    if lt is not None:
-                        is_ground = (a in non_transit or b in non_transit)
-                        t_acq = self.ground_acq_s if is_ground else 1.0
-                        if lt <= t_acq:
-                            # Link will drop before/during acquisition window; mark unusable
-                            return None
-                        elif lt <= t_acq + self.drain_horizon_s:
-                            # Smooth continuous barrier as lifetime expires
-                            drain_penalty = 0.02 / max(lt - t_acq, 1e-4)
+                    fc = orbital_forecasts[e_id]
+                    # Only apply proactive barrier if the link is uncensored (confirmed to drop within horizon)
+                    if not fc.get('censored', True):
+                        lt = fc.get('lifetime_lower_s')
+                        if lt is not None:
+                            is_ground = (a in non_transit or b in non_transit)
+                            t_guard = self.ground_acq_s if is_ground else 0.05
+                            if lt <= t_guard:
+                                # Link will drop imminently; mark unusable to prevent in-flight drop
+                                return None
+                            elif lt <= t_guard + self.drain_horizon_s:
+                                # Smooth continuous barrier as lifetime expires
+                                drain_penalty = 0.02 / max(lt - t_guard, 1e-4)
 
                 # 4. Hysteresis switching penalty to prevent route churn
                 hysteresis = 0.0
