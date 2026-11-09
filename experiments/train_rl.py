@@ -353,6 +353,7 @@ def train(
         device=exec_device,
     )
 
+    best_score = -float("inf")
     best_reward = -float("inf")
     history = []
     start_wall_time = time.time()
@@ -453,8 +454,10 @@ def train(
             f"{lp_str} | {lc_str} | {bulk_mb_str}"
         )
 
-        # 8. Checkpoint Best Performing Model
-        if ep_reward > best_reward:
+        # 8. Checkpoint Best Performing Model (Lagrangian-constrained QoS objective)
+        constrained_score = ep_reward - (10.0 * ep_ctrl_violations) - (5.0 * ep_rt_violations)
+        if constrained_score > best_score:
+            best_score = constrained_score
             best_reward = ep_reward
             trainer.save_checkpoint(out_path / "best_model.pt", scenario_tag=scenario_file.stem)
 

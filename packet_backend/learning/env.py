@@ -213,12 +213,77 @@ class SatelliteRoutingEnv:
             # Realtime
             delta_rejected_rt += max(0, curr_c.get('REALTIME', {}).get('rejected_bytes', 0) - prev_c.get('REALTIME', {}).get('rejected_bytes', 0))
 
-        # Reward formulation: Delivered Bulk throughput in MB, penalize bulk loss
-        reward = (delta_served_bulk / 1e6) - (3.0 * delta_rejected_bulk / 1e6)
+        # 5. Evaluate route path latency and deadline compliance for active flows
+        edge_pair_map = {}
+        for edge in next_obs['links']:
+            edge_pair_map[edge['a'], edge['b']] = edge, 0
+            edge_pair_map[edge['b'], edge['a']] = edge, 1
 
-        # Constraint costs: Penalty for Control/Realtime packet rejections
-        cost_ctrl = float(delta_rejected_ctrl > 0)
-        cost_rt = float(delta_rejected_rt > 0)
+        qos_weights = next_obs.get('qos', {}).get('weights', {'CONTROL': 4, 'REALTIME': 2, 'BULK': 1})
+        total_qos_weight = sum(qos_weights.values())
+
+        ctrl_misses = 0
+        rt_misses = 0
+        ctrl_latency_excess = 0.0
+        rt_latency_excess = 0.0
+
+        for flow in next_obs.get('active_flows', []):
+            f_src = flow['src']
+            f_dst = flow['dst']
+            c = flow['class_id']
+            deadline = flow.get('deadline_s')
+            if deadline is None:
+                continue
+
+            curr = f_src
+            path_latency = 0.0
+            seen = {curr}
+            path_valid = True
+
+            while curr != f_dst:
+                nxt = routes.get((c, curr, f_dst))
+                if nxt is None or nxt in seen:
+                    path_valid = False
+                    break
+                seen.add(nxt)
+                pair = edge_pair_map.get((curr, nxt))
+                if pair is None:
+                    path_valid = False
+                    break
+                edge, direction = pair
+                prop = edge['delay_s']
+                q_entry = curr_queues.get((edge['id'], direction), {})
+                c_name = CLASSES[c]
+                c_bytes = q_entry.get('classes', {}).get(c_name, {}).get('bytes', 0)
+                service_rate_bps = edge['capacity_bps'] * (qos_weights[c_name] / total_qos_weight)
+                q_delay = (c_bytes * 8.0) / max(service_rate_bps, 1.0)
+                path_latency += prop + q_delay
+                curr = nxt
+
+            if not path_valid:
+                # Broken / loop / unreachable path
+                if c == 0:
+                    ctrl_misses += 1
+                    ctrl_latency_excess += 2.0
+                elif c == 1:
+                    rt_misses += 1
+                    rt_latency_excess += 2.0
+            else:
+                if path_latency > deadline:
+                    excess = (path_latency - deadline) / deadline
+                    if c == 0:
+                        ctrl_misses += 1
+                        ctrl_latency_excess += excess
+                    elif c == 1:
+                        rt_misses += 1
+                        rt_latency_excess += excess
+
+        # Reward formulation: Delivered Bulk throughput in MB, penalize bulk loss & latency excess
+        reward = (delta_served_bulk / 1e6) - (3.0 * delta_rejected_bulk / 1e6) - (0.5 * ctrl_latency_excess) - (0.5 * rt_latency_excess)
+
+        # Constraint costs: Penalty for Control/Realtime packet rejections or deadline misses
+        cost_ctrl = float(delta_rejected_ctrl > 0 or ctrl_misses > 0)
+        cost_rt = float(delta_rejected_rt > 0 or rt_misses > 0)
         costs = {"cost_control": cost_ctrl, "cost_realtime": cost_rt}
 
         self.last_observation = next_obs
@@ -231,6 +296,10 @@ class SatelliteRoutingEnv:
             "delta_rejected_bulk": delta_rejected_bulk,
             "delta_rejected_ctrl": delta_rejected_ctrl,
             "delta_rejected_rt": delta_rejected_rt,
+            "ctrl_misses": ctrl_misses,
+            "rt_misses": rt_misses,
+            "ctrl_excess": ctrl_latency_excess,
+            "rt_excess": rt_latency_excess,
         }
         return next_state, reward, costs, False, False, info
 

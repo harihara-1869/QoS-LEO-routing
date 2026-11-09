@@ -99,11 +99,29 @@ class NeuroSymbolicTreeDecoder:
     """Decodes continuous learned edge potentials into strictly loop-free routing trees."""
 
     def __init__(self,
-                 potential_scale: float = 0.20,
+                 potential_scale: float | dict | list | None = None,
                  drain_horizon_s: float = 1.0,
                  ground_acq_s: float = 0.15,
                  change_penalty_s: float = 0.005):
-        self.potential_scale = potential_scale
+        if potential_scale is None:
+            # Default class-calibrated potential scales:
+            # CONTROL (c=0): 0.005s (5ms max perturbation; deadline 50ms)
+            # REALTIME (c=1): 0.020s (20ms max perturbation; deadline 100ms)
+            # BULK (c=2): 0.080s (80ms max perturbation; no deadline, congestion-avoiding)
+            self.potential_scales = {0: 0.005, 1: 0.020, 2: 0.080}
+            self.potential_scale = 0.080
+        elif isinstance(potential_scale, dict):
+            self.potential_scales = potential_scale
+            self.potential_scale = max(potential_scale.values())
+        elif isinstance(potential_scale, (list, tuple)):
+            self.potential_scales = {i: float(v) for i, v in enumerate(potential_scale)}
+            self.potential_scale = max(self.potential_scales.values())
+        else:
+            s = float(potential_scale)
+            self.potential_scale = s
+            # Scale proportionally to QoS tolerances if a single float is passed
+            self.potential_scales = {0: s * 0.05, 1: s * 0.15, 2: s * 0.50}
+
         self.drain_horizon_s = drain_horizon_s
         self.ground_acq_s = ground_acq_s
         self.change_penalty_s = change_penalty_s
@@ -155,7 +173,8 @@ class NeuroSymbolicTreeDecoder:
                 p_idx = edge_index_map.get(e_id, 0)
                 learned_potential = 0.0
                 if potentials is not None and p_idx < len(potentials):
-                    learned_potential = float(potentials[p_idx, c]) * self.potential_scale
+                    p_scale = self.potential_scales.get(c, self.potential_scale)
+                    learned_potential = float(potentials[p_idx, c]) * p_scale
 
                 # 3. Proactive Orbital-Drain Barrier Potential
                 drain_penalty = 0.0
