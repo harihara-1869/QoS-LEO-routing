@@ -661,41 +661,121 @@ canvas.globe,
 /* ── Constellation Studio View ───────────────────────────────────── */
 .studio {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 440px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
 }
 
-.form {
-  padding: 20px;
+.studio .form {
+  padding: 22px;
 }
 
-.form h2 {
-  margin: 0 0 2px;
-  font-size: 24px;
-  letter-spacing: -0.02em;
-  color: var(--ink);
+.studio .globe-card {
+  position: sticky;
+  top: 76px;
+  height: 640px;
+  min-height: 640px;
+}
+
+.studio .globe-card canvas,
+.studio .globe-card .globe-stage {
+  height: 100% !important;
+  min-height: 640px !important;
 }
 
 .tabs {
   display: flex;
   gap: 4px;
-  margin: 16px 0;
+  margin: 14px 0 16px;
   border-bottom: 1px solid var(--line);
 }
 
 .tabs button {
   border: 0;
   background: none;
-  padding: 8px 12px;
+  padding: 8px 14px;
   color: var(--mute);
   border-bottom: 2px solid transparent;
   cursor: pointer;
   font-weight: 500;
+  font-size: 14px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  border-radius: 6px 6px 0 0;
 }
 
-.tabs button.on {
+.tabs button:hover {
   color: var(--ink);
-  border-color: var(--acc);
+  background: var(--hover);
+}
+
+.tabs button.on,
+.tabs button.active {
+  color: var(--acc);
+  border-bottom: 2px solid var(--acc);
+  font-weight: 600;
+}
+
+.station-item {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.station-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.station-header input {
+  font-weight: 600;
+  font-size: 13px;
+  flex: 1;
+  border: 1px solid var(--line);
+  background: var(--field);
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--ink);
+}
+
+.station-delete-btn {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 6px;
+  color: var(--bad);
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.station-delete-btn:hover {
+  background: rgba(179, 64, 47, 0.1);
+  border-color: var(--bad);
+}
+
+.station-coords {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.station-coords label {
+  font-size: 11px;
+  color: var(--mute);
+}
+
+.station-coords input {
+  font: 12px var(--mono);
+  padding: 6px 8px;
 }
 
 .fg {
