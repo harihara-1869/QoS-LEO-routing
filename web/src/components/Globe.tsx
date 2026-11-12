@@ -26,6 +26,7 @@ export interface GlobeProps {
   placeStation?: (lat: number, lon: number) => void;
   flat?: boolean;
   reset: number;
+  focusPath?: boolean;
 }
 const R = 6371;
 const vector = (p: number[]) =>
@@ -61,7 +62,7 @@ function Earth({ placeStation }: Pick<GlobeProps, "placeStation">) {
           }
         }}
       >
-        <sphereGeometry args={[1, 96, 64]} />
+        <sphereGeometry args={[1, 64, 48]} />
         <meshPhongMaterial
           map={day}
           emissiveMap={night}
@@ -136,18 +137,21 @@ function Satellites({ run, time, selected, onSelect }: GlobeProps) {
     </instancedMesh>
   );
 }
-function Network({ run, time, flow, selected, links }: GlobeProps) {
+function Network({ run, time, flow, selected, links, focusPath }: GlobeProps) {
   const [a, b, t] = framePair(run, time);
   const current = a.routes.find((r) => r.id === flow);
   const positions = a.positions.map((p, i) =>
     vector(p).lerp(vector(b.positions[i] ?? p), t),
   );
-  const chosen = new Set(current?.path ?? []);
+  const pathSet = new Set(current?.path ?? []);
+  const chosen = pathSet;
   const data = useMemo(() => {
     const points: number[] = [];
     const colors: number[] = [];
     a.links.forEach((link) => {
       if (!positions[link.a] || !positions[link.b]) return;
+      // In focusPath mode, only draw links that are on the active route path
+      if (focusPath && !(pathSet.has(link.a) && pathSet.has(link.b))) return;
       const isGround =
         run.nodes[link.a]?.kind === "ground" ||
         run.nodes[link.b]?.kind === "ground";
@@ -169,7 +173,7 @@ function Network({ run, time, flow, selected, links }: GlobeProps) {
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     return geometry;
-  }, [a, b, t, selected, run.nodes]);
+  }, [a, b, t, selected, run.nodes, focusPath]);
   useEffect(() => () => data.dispose(), [data]);
   return (
     <>
