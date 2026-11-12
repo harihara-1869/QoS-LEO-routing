@@ -253,25 +253,25 @@ export function Library({
                       : r.id.slice(0, 12).toUpperCase()}{" "}
                     <i /> {r.duration_s.toFixed(1)} s episode
                   </small>
+                  <div className="run-headline-metrics">
+                    {r.metrics?.delivery_ratio != null && (
+                      <span className={`run-metric-chip ${r.metrics.delivery_ratio > 0.9 ? "good" : r.metrics.delivery_ratio < 0.6 ? "warn" : ""}`}>
+                        {(r.metrics.delivery_ratio * 100).toFixed(0)}% delivery
+                      </span>
+                    )}
+                    {r.metrics?.delay_p95_s != null && (
+                      <span className={`run-metric-chip ${r.metrics.delay_p95_s < 0.08 ? "good" : r.metrics.delay_p95_s > 0.15 ? "warn" : ""}`}>
+                        {(r.metrics.delay_p95_s * 1000).toFixed(0)} ms p95
+                      </span>
+                    )}
+                    {r.metrics?.goodput_bps != null && (
+                      <span className="run-metric-chip">
+                        {(r.metrics.goodput_bps / 1e6).toFixed(2)} Mbps
+                      </span>
+                    )}
+                  </div>
                 </span>
               </button>
-              <div className="run-headline-metrics">
-                {r.metrics?.delivery_ratio != null && (
-                  <span className={`run-metric-chip ${r.metrics.delivery_ratio > 0.9 ? "good" : r.metrics.delivery_ratio < 0.6 ? "warn" : ""}`}>
-                    {(r.metrics.delivery_ratio * 100).toFixed(0)}% delivery
-                  </span>
-                )}
-                {r.metrics?.delay_p95_s != null && (
-                  <span className={`run-metric-chip ${r.metrics.delay_p95_s < 0.08 ? "good" : r.metrics.delay_p95_s > 0.15 ? "warn" : ""}`}>
-                    {(r.metrics.delay_p95_s * 1000).toFixed(0)} ms p95
-                  </span>
-                )}
-                {r.metrics?.goodput_bps != null && (
-                  <span className="run-metric-chip">
-                    {(r.metrics.goodput_bps / 1e6).toFixed(2)} Mbps
-                  </span>
-                )}
-              </div>
               <span className="policy-name">
                 {r.policy.replaceAll("_", " ")}
               </span>
