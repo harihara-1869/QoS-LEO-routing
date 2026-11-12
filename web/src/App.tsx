@@ -64,7 +64,7 @@ import {
 } from "./lib/model";
 import { Studio, ScenarioBadge } from "./components/Studio";
 import { Library } from "./components/Library";
-import { Sparkline, Trend } from "./components/Charts";
+import { Sparkline, Trend, DeadlineTracker, QueueBreakdown, RouteChurnCounter } from "./components/Charts";
 const Globe = lazy(() => import("./components/Globe"));
 const tabs: { id: View; label: string; icon: typeof Orbit }[] = [
   { id: "mission", label: "Mission control", icon: Orbit },
@@ -132,6 +132,7 @@ function App() {
     [orbits, setOrbits] = useState(true),
     [rotate, setRotate] = useState(true),
     [flat, setFlat] = useState(false),
+    [focusPath, setFocusPath] = useState(false),
     [reset, setReset] = useState(0),
     [presentation, setPresentation] = useState(false),
     [placing, setPlacing] = useState(false);
@@ -734,6 +735,7 @@ function App() {
         placeStation={placing ? place : undefined}
         flat={flat}
         reset={reset}
+        focusPath={focusPath}
       />
     </Suspense>
   );
@@ -1186,6 +1188,14 @@ function App() {
                       <Crosshair size={15} />
                     </button>
                     <button
+                      className={`icon-button ${focusPath ? "selected" : ""}`}
+                      title="Show active path only"
+                      aria-label="Toggle active path focus"
+                      onClick={() => setFocusPath((v) => !v)}
+                    >
+                      <Waypoints size={14} />
+                    </button>
+                    <button
                       className="icon-button"
                       title="Presentation mode"
                       aria-label="Presentation mode"
@@ -1205,6 +1215,9 @@ function App() {
                         ? `${run.scenario.constellation.altitude_km} KM ABOVE THE SURFACE`
                         : "HISTORICAL GRAPH · ORBIT GEOMETRY UNAVAILABLE"}
                     </small>
+                  </span>
+                  <span className={`data-source-badge ${activeLive ? "live" : run.bundled ? "demo" : ""}`}>
+                    {activeLive ? "LIVE SIMULATION" : run.bundled ? "RECORDED DEMO" : "SAVED REPLAY"}
                   </span>
                 </div>
                 <div className="globe-stats">
@@ -1672,6 +1685,13 @@ function App() {
                             . Latency uses delivered packets.
                           </span>
                         </div>
+                        <div className="section-heading service-heading">
+                          <h3>Deadline success</h3>
+                          <span>AT CURSOR</span>
+                        </div>
+                        <DeadlineTracker metrics={metrics ?? null} scenario={run.scenario} />
+                        <QueueBreakdown queues={current.queues} links={current.links} />
+                        <RouteChurnCounter events={run.events} />
                       </>
                     )}
                   </aside>
