@@ -45,6 +45,8 @@ import {
   Presentation,
   Link2,
   AlertTriangle,
+  Sun,
+  Moon,
 } from "lucide-react";
 import type {
   Capabilities,
@@ -138,7 +140,14 @@ function App() {
     [focusPath, setFocusPath] = useState(false),
     [reset, setReset] = useState(0),
     [presentation, setPresentation] = useState(false),
-    [placing, setPlacing] = useState(false);
+    [placing, setPlacing] = useState(false),
+    [theme, setTheme] = useState<"light" | "dark">(() => {
+      try {
+        return (localStorage.getItem("apogee-theme") as "light" | "dark") || "light";
+      } catch {
+        return "light";
+      }
+    });
   const [cap, setCap] = useState<Capabilities>(),
     [online, setOnline] = useState(false),
     [records, setRecords] = useState<RunRecord[]>([]),
@@ -189,6 +198,14 @@ function App() {
       /* Browser storage may be disabled. */
     }
   }, [bookmarks]);
+  useEffect(() => {
+    try {
+      localStorage.setItem("apogee-theme", theme);
+    } catch {
+      /* Browser storage may be disabled. */
+    }
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
   const stream = useRef<EventSource | null>(null),
     previewGeneration = useRef(0),
     previewAbort = useRef<AbortController | null>(null),
@@ -807,7 +824,7 @@ function App() {
     </Suspense>
   );
   return (
-    <div className={`app ${presentation ? "presentation" : ""}`}>
+    <div className={`app ${theme === "light" ? "light-theme" : ""} ${presentation ? "presentation" : ""}`}>
       <a className="skip-link" href="#main">
         Skip to mission workspace
       </a>
@@ -835,6 +852,14 @@ function App() {
         </div>
         <div className="topbar-actions">
           <button
+            className="icon-button theme-toggle"
+            title={theme === "light" ? "Switch to dark mode" : "Switch to academic light theme"}
+            aria-label="Toggle color theme"
+            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+          >
+            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
+          <button
             className="icon-button"
             title="Presentation mode"
             aria-label="Toggle presentation mode"
@@ -842,7 +867,7 @@ function App() {
           >
             <Expand size={17} />
           </button>
-          <span className="user-avatar">H</span>
+          <span className="user-avatar" title="Ayush Ranjan">A</span>
           <button className="primary-button launch-header" onClick={openLaunch}>
             <Plus size={15} />
             New simulation
