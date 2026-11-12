@@ -16,11 +16,14 @@ import {
   Info,
   Layers3,
   MapPin,
+  Moon,
   Orbit,
+  Pause,
   Play,
   Plus,
   RefreshCw,
   Satellite,
+  Sun,
   TriangleAlert,
   Waypoints,
   X,
@@ -721,15 +724,16 @@ function App() {
         <span>Establishing an orbital perspective</span>
       </div>
     );
+  const rotateEarth =
+    rotate && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const globeFallback = (
+    <div className="globe-loading">
+      <Orbit size={35} className="spin" />
+      <span>Rendering the Earth</span>
+    </div>
+  );
   const globe = (
-    <Suspense
-      fallback={
-        <div className="globe-loading">
-          <Orbit size={35} className="spin" />
-          <span>Rendering the Earth</span>
-        </div>
-      }
-    >
+    <Suspense fallback={globeFallback}>
       <Globe
         run={detailedRun ?? run}
         time={time}
@@ -740,9 +744,7 @@ function App() {
         flow={flow}
         links={links}
         orbits={orbits}
-        rotate={
-          rotate && !matchMedia("(prefers-reduced-motion: reduce)").matches
-        }
+        rotate={rotateEarth}
         presentation={presentation}
         placeStation={placing ? place : undefined}
         flat={flat}
@@ -751,6 +753,36 @@ function App() {
       />
     </Suspense>
   );
+  const studioTime =
+    run.frames.find((frame) => frame.positions.length)?.time_s ?? 0;
+  const studioGlobe = (
+    <Suspense fallback={globeFallback}>
+      <Globe
+        run={run}
+        time={studioTime}
+        selected={null}
+        onSelect={() => {}}
+        flow={-1}
+        links={false}
+        orbits={orbits}
+        rotate={rotateEarth}
+        presentation={false}
+        placeStation={placing ? place : undefined}
+        flat={flat}
+        reset={reset}
+        focusPath={false}
+        design
+      />
+    </Suspense>
+  );
+  const classSuccess = (key: "CONTROL" | "REALTIME" | "BULK") => {
+    const metrics = current?.metrics?.classes?.[key];
+    if (!metrics) return 0;
+    const ratio =
+      metrics.deadline_success ??
+      (metrics.generated > 0 ? metrics.delivered / metrics.generated : 0);
+    return Math.min(100, Math.max(0, ratio * 100));
+  };
   return (
     <div className={`app ${theme === "light" ? "light-theme" : ""} ${presentation ? "presentation" : ""}`}>
       <header className="app-header">
@@ -794,7 +826,7 @@ function App() {
             aria-label="Toggle color theme"
             onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
           >
-            {theme === "light" ? "☾" : "☀"}
+            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
           </button>
           <span className="user-avatar" title="Ayush Ranjan">
             A
@@ -1181,7 +1213,7 @@ function App() {
                 placing={placing}
               />
               <div className="card globe-card">
-                {globe}
+                {studioGlobe}
                 <div className="g-tag">
                   <b>Orbital network</b>
                   <span>Drag to orbit, scroll to zoom</span>
@@ -1194,8 +1226,8 @@ function App() {
                     <span>satellites</span>
                   </div>
                   <div>
-                    <b>{current?.links.length ?? 0}</b>
-                    <span>active links</span>
+                    <b>{draft.constellation?.n_planes ?? 0}</b>
+                    <span>orbital planes</span>
                   </div>
                   <div>
                     <b>{nodes.filter((n) => n.kind === "ground").length}</b>
@@ -1298,7 +1330,7 @@ function App() {
                       setPlaying((v) => !v);
                     }}
                   >
-                    {playing ? "❚❚" : "▶"}
+                    {playing ? <Pause size={16} /> : <Play size={16} />}
                   </button>
                   <input
                     type="range"
@@ -1400,34 +1432,11 @@ function App() {
                       <span>
                         Control<em>deadline success</em>
                       </span>
-                      <i>
-                        {(
-                          ((current?.metrics?.classes?.["CONTROL"]?.delivered ?? 0) /
-                            Math.max(
-                              1,
-                              current?.metrics?.classes?.["CONTROL"]?.generated ??
-                                1,
-                            )) *
-                          100
-                        ).toFixed(1)}
-                        %
-                      </i>
+                      <i>{classSuccess("CONTROL").toFixed(1)}%</i>
                     </div>
                     <div className="bar">
                       <u
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            ((current?.metrics?.classes?.["CONTROL"]?.delivered ??
-                              0) /
-                              Math.max(
-                                1,
-                                current?.metrics?.classes?.["CONTROL"]?.generated ??
-                                  1,
-                              )) *
-                              100,
-                          )}%`,
-                        }}
+                        style={{ width: `${classSuccess("CONTROL")}%` }}
                       />
                     </div>
                   </div>
@@ -1437,34 +1446,11 @@ function App() {
                       <span>
                         Realtime<em>deadline success</em>
                       </span>
-                      <i>
-                        {(
-                          ((current?.metrics?.classes?.["REALTIME"]?.delivered ?? 0) /
-                            Math.max(
-                              1,
-                              current?.metrics?.classes?.["REALTIME"]?.generated ??
-                                1,
-                            )) *
-                          100
-                        ).toFixed(1)}
-                        %
-                      </i>
+                      <i>{classSuccess("REALTIME").toFixed(1)}%</i>
                     </div>
                     <div className="bar">
                       <u
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            ((current?.metrics?.classes?.["REALTIME"]?.delivered ??
-                              0) /
-                              Math.max(
-                                1,
-                                current?.metrics?.classes?.["REALTIME"]
-                                  ?.generated ?? 1,
-                              )) *
-                              100,
-                          )}%`,
-                        }}
+                        style={{ width: `${classSuccess("REALTIME")}%` }}
                       />
                     </div>
                   </div>
@@ -1474,32 +1460,11 @@ function App() {
                       <span>
                         Bulk<em>delivery</em>
                       </span>
-                      <i>
-                        {(
-                          ((current?.metrics?.classes?.["BULK"]?.delivered ?? 0) /
-                            Math.max(
-                              1,
-                              current?.metrics?.classes?.["BULK"]?.generated ?? 1,
-                            )) *
-                          100
-                        ).toFixed(1)}
-                        %
-                      </i>
+                      <i>{classSuccess("BULK").toFixed(1)}%</i>
                     </div>
                     <div className="bar">
                       <u
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            ((current?.metrics?.classes?.["BULK"]?.delivered ?? 0) /
-                              Math.max(
-                                1,
-                                current?.metrics?.classes?.["BULK"]?.generated ??
-                                  1,
-                              )) *
-                              100,
-                          )}%`,
-                        }}
+                        style={{ width: `${classSuccess("BULK")}%` }}
                       />
                     </div>
                   </div>

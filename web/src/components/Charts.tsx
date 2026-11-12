@@ -114,20 +114,55 @@ export function Sparkline({
   color?: string;
 }) {
   const max = Math.max(1, ...values);
+  const precision = max >= 10 ? 0 : 1;
+  const guides = [1, 0.75, 0.5, 0.25, 0].map((q) => ({
+    q,
+    y: 24 - q * 20,
+    label: q === 0 ? "0" : (q * max).toFixed(precision),
+  }));
   return (
-    <svg className="sparkline" viewBox="0 0 90 26" aria-hidden="true">
-      <polyline
-        points={values
-          .map(
-            (v, i) =>
-              `${(i / Math.max(1, values.length - 1)) * 90},${24 - (v / max) * 20}`,
-          )
-          .join(" ")}
-        stroke={color}
-        fill="none"
-        strokeWidth="1.5"
-      />
-    </svg>
+    <div className="spark-chart">
+      <svg
+        className="sparkline"
+        viewBox="0 0 90 26"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        {guides.map(({ q, y }) => (
+          <line
+            key={q}
+            x1="0"
+            x2="90"
+            y1={y}
+            y2={y}
+            stroke="var(--line)"
+            strokeDasharray={q === 0 ? undefined : "2 3"}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        <polyline
+          points={values
+            .map(
+              (v, i) =>
+                `${(i / Math.max(1, values.length - 1)) * 90},${24 - (v / max) * 20}`,
+            )
+            .join(" ")}
+          stroke={color}
+          fill="none"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <div className="spark-guides" aria-hidden="true">
+        {guides.map(({ q, y, label }) => (
+          <span key={q} style={{ top: `${(y / 26) * 100}%` }}>
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -180,19 +215,19 @@ export function DeadlineTracker({
     {
       label: "CONTROL",
       ratio: controlRatio,
-      classColor: "#60a5fa",
+      classColor: "var(--control-class)",
       target: `${controlDeadline.toFixed(0)} ms target`,
     },
     {
       label: "REALTIME",
       ratio: realtimeRatio,
-      classColor: "#a78bfa",
+      classColor: "var(--realtime-class)",
       target: `${realtimeDeadline.toFixed(0)} ms target`,
     },
     {
       label: "BULK",
       ratio: bulkRatio,
-      classColor: "#34d399",
+      classColor: "var(--bulk-class)",
     },
   ];
 
@@ -215,18 +250,7 @@ export function DeadlineTracker({
                 {ratio != null ? getRatio(ratio) : "—"}
               </span>
             </div>
-            {target && (
-              <div
-                style={{
-                  paddingLeft: "68px",
-                  fontSize: "8px",
-                  color: "var(--muted, #5a7a8a)",
-                  marginTop: "2px",
-                }}
-              >
-                {target}
-              </div>
-            )}
+            {target && <div className="deadline-target">{target}</div>}
           </div>
         );
       })}

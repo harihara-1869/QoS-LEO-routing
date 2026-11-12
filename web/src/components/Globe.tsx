@@ -27,6 +27,7 @@ export interface GlobeProps {
   flat?: boolean;
   reset: number;
   focusPath?: boolean;
+  design?: boolean;
 }
 const R = 6371;
 const vector = (p: number[]) =>
@@ -87,7 +88,7 @@ function Earth({ placeStation }: Pick<GlobeProps, "placeStation">) {
     </>
   );
 }
-function Satellites({ run, time, selected, onSelect }: GlobeProps) {
+function Satellites({ run, time, selected, onSelect, design }: GlobeProps) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
@@ -103,9 +104,15 @@ function Satellites({ run, time, selected, onSelect }: GlobeProps) {
         (p[2] + (to[2] - p[2]) * t) / R,
         -(p[1] + (to[1] - p[1]) * t) / R,
       );
-      dummy.scale.setScalar(
-        node.id === selected ? 0.014 : node.kind === "ground" ? 0.009 : 0.0045,
-      );
+      const baseScale =
+        node.kind === "ground"
+          ? design
+            ? 0.01
+            : 0.009
+          : design
+            ? 0.006
+            : 0.0045;
+      dummy.scale.setScalar(node.id === selected ? 0.014 : baseScale);
       dummy.updateMatrix();
       mesh.current!.setMatrixAt(i, dummy.matrix);
       mesh.current!.setColorAt(
@@ -187,19 +194,20 @@ function Network({ run, time, flow, selected, links, focusPath }: GlobeProps) {
           />
         </lineSegments>
       )}
-      {a.routes.map((r) =>
-        r.id === flow || r.path.length < 2 ? null : (
-          <Line
-            key={`route-${r.id}`}
-            points={r.path.filter((i) => positions[i]).map((i) => positions[i])}
-            color={CLASS_COLORS[r.flow_type]}
-            lineWidth={0.8}
-            transparent
-            opacity={0.25}
-          />
-        ),
-      )}
-      {current && current.path.length > 1 && (
+      {links &&
+        a.routes.map((r) =>
+          r.id === flow || r.path.length < 2 ? null : (
+            <Line
+              key={`route-${r.id}`}
+              points={r.path.filter((i) => positions[i]).map((i) => positions[i])}
+              color={CLASS_COLORS[r.flow_type]}
+              lineWidth={0.8}
+              transparent
+              opacity={0.25}
+            />
+          ),
+        )}
+      {links && current && current.path.length > 1 && (
         <Line
           points={current.path
             .filter((i) => positions[i])
@@ -209,19 +217,24 @@ function Network({ run, time, flow, selected, links, focusPath }: GlobeProps) {
           transparent
           opacity={0.95}
         />
-      )}{" "}
-      {[...chosen]
-        .filter((i) => positions[i])
-        .map((i) => (
-          <mesh key={i} position={positions[i]}>
-            <sphereGeometry args={[0.007, 10, 8]} />
-            <meshBasicMaterial color="#e4fff6" />
-          </mesh>
-        ))}
+      )}
+      {links &&
+        [...chosen]
+          .filter((i) => positions[i])
+          .map((i) => (
+            <mesh key={i} position={positions[i]}>
+              <sphereGeometry args={[0.007, 10, 8]} />
+              <meshBasicMaterial color="#e4fff6" />
+            </mesh>
+          ))}
     </>
   );
 }
-function OrbitTraces({ run, time }: Pick<GlobeProps, "run" | "time">) {
+function OrbitTraces({
+  run,
+  time,
+  design,
+}: Pick<GlobeProps, "run" | "time" | "design">) {
   const [a] = framePair(run, time);
   const groups = new Map<string, THREE.Vector3[]>();
   run.nodes.forEach((n, i) => {
@@ -240,8 +253,8 @@ function OrbitTraces({ run, time }: Pick<GlobeProps, "run" | "time">) {
             points={[...points, points[0]]}
             color="#397182"
             transparent
-            opacity={0.1}
-            lineWidth={0.6}
+            opacity={design ? 0.26 : 0.1}
+            lineWidth={design ? 0.85 : 0.6}
           />
         ))}
     </>
@@ -326,7 +339,7 @@ function Stars() {
     </points>
   );
 }
-function FlatMap({ run, time, selected, onSelect }: GlobeProps) {
+function FlatMap({ run, time, selected, onSelect, links }: GlobeProps) {
   const [a] = framePair(run, time);
   const project = (p: number[]) => [
     180 + (Math.atan2(p[1], p[0]) * 180) / Math.PI,
@@ -346,22 +359,23 @@ function FlatMap({ run, time, selected, onSelect }: GlobeProps) {
         {[60, 120, 180, 240, 300].map((x) => (
           <line key={x} x1={x} x2={x} y1="0" y2="180" stroke="#233641" />
         ))}
-        {a.links.map((l) => {
-          if (!a.positions[l.a] || !a.positions[l.b]) return null;
-          const p = project(a.positions[l.a]),
-            q = project(a.positions[l.b]);
-          return Math.abs(p[0] - q[0]) < 180 ? (
-            <line
-              key={l.id}
-              x1={p[0]}
-              y1={p[1]}
-              x2={q[0]}
-              y2={q[1]}
-              stroke="#2b535c"
-              strokeWidth=".3"
-            />
-          ) : null;
-        })}
+        {links &&
+          a.links.map((l) => {
+            if (!a.positions[l.a] || !a.positions[l.b]) return null;
+            const p = project(a.positions[l.a]),
+              q = project(a.positions[l.b]);
+            return Math.abs(p[0] - q[0]) < 180 ? (
+              <line
+                key={l.id}
+                x1={p[0]}
+                y1={p[1]}
+                x2={q[0]}
+                y2={q[1]}
+                stroke="#2b535c"
+                strokeWidth=".3"
+              />
+            ) : null;
+          })}
         {run.nodes.map((n, i) => {
           if (!a.positions[i]) return null;
           const [x, y] = project(a.positions[i]);
@@ -400,7 +414,7 @@ export default function Globe(props: GlobeProps) {
   });
   const fallback = <FlatMap {...props} />;
   if (props.flat || !webgl) return fallback;
-  if (!props.run.frames[0]?.positions.length)
+  if (!props.run.frames.some((frame) => frame.positions.length))
     return (
       <div className="no-geometry">
         <p>
@@ -439,7 +453,13 @@ export default function Globe(props: GlobeProps) {
           <Stars />
           <Satellites {...props} />
           <Network {...props} />
-          {props.orbits && <OrbitTraces run={props.run} time={props.time} />}
+          {props.orbits && (
+            <OrbitTraces
+              run={props.run}
+              time={props.time}
+              design={props.design}
+            />
+          )}
           <Selection
             run={props.run}
             time={props.time}
