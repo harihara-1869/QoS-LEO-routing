@@ -84,6 +84,10 @@ class Supervisor:
 
     def start(self):
         for r in all_runs():
+            # Jobs that never left the durable queue are safe to resume after
+            # restart; only work owned by a vanished worker is interrupted.
+            if r["status"] == "queued":
+                continue
             if r["status"] not in TERMINAL:
                 r.update(
                     status="interrupted",
@@ -146,9 +150,11 @@ class Supervisor:
                         error=state.get("error") if code else None,
                     )
                 if (d / "replay.json").exists():
-                    record["metrics"] = read_json(d / "replay.json")["frames"][-1][
-                        "metrics"
-                    ]
+                    replay_index = read_json(d / "replay-index.json", {}).get("frames", [])
+                    if replay_index:
+                        record["metrics"] = read_replay_frame(d, replay_index[-1][1])["metrics"]
+                    else:
+                        record["metrics"] = read_json(d / "replay.json")["frames"][-1]["metrics"]
                 save(record)
                 self.process = None
                 self.active = None
@@ -278,6 +284,10 @@ def create_run(body: dict):
         scenario_hash=digest,
         metrics=None,
         progress=0,
+        checkpoint=body.get("checkpoint"),
+        encoder_version=body.get("encoder_version"),
+        calibration=body.get("calibration"),
+        source_version=body.get("source_version", "apogee-dashboard-v1"),
     )
     atomic_json(d / "job.json", {**r, "scenario": c})
     save(r)
@@ -342,6 +352,9 @@ def replay_data(run_id: str):
     d = directory(run_id)
     bundle = read_json(d / "replay.json")
     if bundle:
+        if not bundle.get("frames") and (d / "replay-index.json").exists():
+            index = read_json(d / "replay-index.json", {}).get("frames", [])
+            bundle["frames"] = [read_replay_frame(d, entry[1]) for entry in index]
         return bundle
     job = read_json(d / "job.json")
     frames = []
@@ -377,6 +390,43 @@ def replay_data(run_id: str):
     )
 
 
+def read_replay_frame(directory, offset):
+    index = read_json(Path(directory) / "replay-index.json", {})
+    with (directory / index.get("file", "replay-frames.jsonl")).open("rb") as source:
+        source.seek(offset)
+        return json.loads(source.readline())
+
+
+def frame_index(directory, filename="frames.jsonl"):
+    """Return a small seek index without retaining the frame payloads in memory."""
+    d = Path(directory)
+    cache = d / f"{filename}.index.json"
+    path = d / filename
+    if cache.exists():
+        cached = read_json(cache, {})
+        if cached.get("byte_size") == path.stat().st_size:
+            return cached.get("frames", [])
+    entries = []
+    with path.open("rb") as source:
+        while True:
+            offset = source.tell()
+            line = source.readline()
+            if not line:
+                break
+            try:
+                entries.append([json.loads(line)["time_s"], offset])
+            except (json.JSONDecodeError, KeyError, TypeError):
+                continue
+    atomic_json(cache, {"schema_version": 1, "byte_size": path.stat().st_size, "frames": entries})
+    return entries
+
+
+def read_indexed_frame(directory, filename, offset):
+    with (Path(directory) / filename).open("rb") as source:
+        source.seek(offset)
+        return json.loads(source.readline())
+
+
 @app.get("/api/v1/runs/{run_id}/replay")
 def replay(run_id: str, center_s: float | None = None, limit: int = 160):
     """A bounded overview or a contiguous frame window around the seek cursor."""
@@ -387,6 +437,40 @@ def replay(run_id: str, center_s: float | None = None, limit: int = 160):
         raise ValueError("Replay window limit must be between 2 and 160")
     if center_s is not None and not math.isfinite(center_s):
         raise ValueError("Replay cursor must be finite")
+    d = directory(run_id)
+    index_path = d / "replay-index.json"
+    bundle = read_json(d / "replay.json")
+    replay_index = read_json(index_path, {}) if index_path.exists() else {}
+    frame_file = replay_index.get("file", "replay-frames.jsonl")
+    entries = replay_index.get("frames", [])
+    if not entries and (d / "frames.jsonl").exists():
+        frame_file = "frames.jsonl"
+        entries = frame_index(d)
+        job = read_json(d / "job.json", {})
+        state = read_json(d / "ui-state.json", {})
+        bundle = dict(
+            schema_version=1, id=run_id, name=get_run(run_id)["name"],
+            status=get_run(run_id)["status"], policy=get_run(run_id)["policy"],
+            scenario=job.get("scenario", {}), nodes=state.get("nodes", []),
+            duration_s=entries[-1][0] if entries else 0, frame="ECEF", units="km",
+            events=state.get("events", []), source="Partial recorded simulation",
+            capabilities=dict(metrics=True, geometry=True, forecast=False),
+        )
+    if bundle and entries:
+        total = len(entries)
+        if total <= limit:
+            chosen = list(range(total))
+        elif center_s is None:
+            chosen = [round(i * (total - 1) / (limit - 1)) for i in range(limit)]
+        else:
+            times = [entry[0] for entry in entries]
+            index = bisect_right(times, center_s) - 1
+            start = max(0, min(total - limit, index - limit // 3))
+            chosen = range(start, start + limit)
+        bundle["frames"] = [read_indexed_frame(d, frame_file, entries[i][1]) for i in chosen]
+        bundle["total_frames"] = total
+        bundle["sampled"] = center_s is None and total > limit
+        return bundle
     bundle = replay_data(run_id)
     frames = bundle["frames"]
     total = len(frames)
