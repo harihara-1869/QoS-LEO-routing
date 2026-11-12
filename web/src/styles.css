@@ -15,6 +15,12 @@
   --sidebar: 206px;
   --header: 70px;
   color-scheme: dark;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --success: #22c55e;
+  --control-class: #60a5fa;
+  --realtime-class: #a78bfa;
+  --bulk-class: #34d399;
 }
 * {
   box-sizing: border-box;
@@ -943,10 +949,13 @@ small {
   flex-shrink: 0;
 }
 .class-dot.realtime {
-  background: #e0b678;
+  background: #a78bfa;
 }
 .class-dot.bulk {
-  background: #7aa5e2;
+  background: #34d399;
+}
+.class-dot.control {
+  background: #60a5fa;
 }
 .class-metric b {
   font-size: 9px;
@@ -2541,6 +2550,54 @@ small {
     opacity: 0.25;
   }
 }
+
+/* ── Deadline tracker bars ── */
+.deadline-tracker { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; }
+.deadline-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.deadline-bar-bg { flex: 1; height: 6px; background: #1b2934; border-radius: 3px; overflow: hidden; position: relative; }
+.deadline-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+.deadline-bar-label { font: 8px "IBM Plex Mono", monospace; letter-spacing: 0.8px; color: var(--muted); width: 60px; flex-shrink: 0; }
+.deadline-bar-value { font: 9px "IBM Plex Mono", monospace; color: #c2d1db; width: 36px; text-align: right; flex-shrink: 0; }
+
+/* ── Congestion alert ── */
+.congestion-alert { display: flex; align-items: center; gap: 8px; padding: 8px 11px; background: #2a1a0a; border: 1px solid #5c350a; border-radius: 4px; font-size: 9px; color: #f59e0b; margin: 8px 0; }
+.congestion-alert svg { flex-shrink: 0; }
+
+/* ── Queue breakdown by class ── */
+.queue-breakdown { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
+.queue-class-row { display: flex; align-items: center; gap: 8px; font-size: 9px; }
+.queue-class-name { font: 8px "IBM Plex Mono", monospace; width: 58px; color: var(--muted); flex-shrink: 0; }
+.queue-class-bar { flex: 1; height: 4px; background: #1b2934; border-radius: 2px; overflow: hidden; }
+.queue-class-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
+.queue-class-count { font: 9px "IBM Plex Mono", monospace; color: #8aa5b5; width: 32px; text-align: right; }
+
+/* ── Route churn ── */
+.route-churn-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); font-size: 9px; }
+.churn-count { font: 11px "IBM Plex Mono", monospace; color: var(--amber); font-weight: 600; }
+
+/* ── Link lifetime badge ── */
+.link-lifetime-badge { display: inline-flex; align-items: center; gap: 5px; font: 8px "IBM Plex Mono", monospace; letter-spacing: 0.5px; padding: 3px 7px; border-radius: 3px; border: 1px solid #3a4f1a; background: #1a2910; color: #9de06a; }
+.link-lifetime-badge.warning { border-color: #5c350a; background: #2a1a0a; color: #f59e0b; }
+
+/* ── Data source badge ── */
+.data-source-badge { font: 7px "IBM Plex Mono", monospace; letter-spacing: 1.2px; padding: 3px 8px; border-radius: 2px; color: #8aaab8; background: #0a131c; border: 1px solid #1b2934; }
+.data-source-badge.live { color: #b4f2d9; border-color: #1f4035; background: #0d2520; }
+.data-source-badge.demo { color: #a0b8d4; border-color: #1f3050; background: #0d1a2a; }
+
+/* ── Library filter bar ── */
+.lib-filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 0 16px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.lib-filter-select { font: 9px "IBM Plex Mono", monospace; letter-spacing: 0.5px; padding: 6px 10px; border: 1px solid #263542; border-radius: 4px; background: #0a111a; color: #c2d1db; cursor: pointer; }
+.lib-filter-label { font: 7px "IBM Plex Mono", monospace; letter-spacing: 1.1px; color: var(--muted); }
+
+/* ── Run headline metrics on library cards ── */
+.run-headline-metrics { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.run-metric-chip { font: 8px "IBM Plex Mono", monospace; padding: 3px 7px; border-radius: 3px; background: #111d27; border: 1px solid #1e3042; color: #9ab9c8; }
+.run-metric-chip.good { border-color: #1a3d2e; background: #0f2219; color: #8de0be; }
+.run-metric-chip.warn { border-color: #3d2a0d; background: #221605; color: #f59e0b; }
+
+/* ── Globe coordinate bar improvement ── */
+.globe-coordinate { display: flex; justify-content: space-between; align-items: center; }
+
 @media (min-width: 1700px) {
   :root {
     --sidebar: 226px;
