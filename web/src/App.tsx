@@ -42,6 +42,9 @@ import {
   Waypoints,
   X,
   Zap,
+  Presentation,
+  Link2,
+  AlertTriangle,
 } from "lucide-react";
 import type {
   Capabilities,
@@ -160,7 +163,8 @@ function App() {
       "telemetry",
     ),
     [bootError, setBootError] = useState(""),
-    [baseline, setBaseline] = useState<Replay>();
+    [baseline, setBaseline] = useState<Replay>(),
+    [demoStep, setDemoStep] = useState<number | null>(null);
   const [bookmarks, setBookmarks] = useState<
     Record<string, import("./lib/types").RunEvent[]>
   >(() => {
@@ -688,6 +692,69 @@ function App() {
     comparisonFrame = frameAt(detailedComparison, comparisonTime);
   const differences =
     run && comparison ? scenarioDiff(run.scenario, comparison.scenario) : [];
+
+  // ── Mentor demo walkthrough ──────────────────────────────────────────────
+  const DEMO_STAGES = [
+    {
+      label: "1 / 5 · Constellation Studio",
+      cue: "0:00 – 1:00",
+      heading: "Welcome to APOGEE",
+      body: "APOGEE models a 200-satellite Walker-delta LEO constellation with real SGP4 propagation and packet-level QoS routing. Use Constellation Studio (left sidebar) to inspect the orbital parameters, ground stations and traffic flows before running any simulation.",
+      action: () => { setView("studio"); },
+      actionLabel: "Open Studio",
+    },
+    {
+      label: "2 / 5 · Conventional routing",
+      cue: "1:00 – 2:00",
+      heading: "Baseline: propagation Dijkstra",
+      body: "This is the recorded baseline run using propagation-only Dijkstra routing. Seek to t ≈ 85 s to watch a link drop trigger a reactive reroute — notice the brief delivery dip as the new path is installed.",
+      action: () => {
+        openRun("demo-baseline").then(() => {
+          setTime(85);
+          setPlaying(false);
+          setView("mission");
+        });
+      },
+      actionLabel: "Load baseline & seek t=85 s",
+    },
+    {
+      label: "3 / 5 · Predictive routing",
+      cue: "2:00 – 3:30",
+      heading: "APOGEE predictive controller",
+      body: "The predictive run uses link-lifetime forecasting + queue-pressure EWMA to trigger a proactive handover ~75–80 s before the same link drop. Seek to t ≈ 76 s to compare: delivery stays above 90 % through the transition.",
+      action: () => {
+        openRun("demo-handover").then(() => {
+          setTime(76);
+          setPlaying(false);
+          setView("mission");
+        });
+      },
+      actionLabel: "Load demo & seek t=76 s",
+    },
+    {
+      label: "4 / 5 · Side-by-side comparison",
+      cue: "3:30 – 4:30",
+      heading: "Compare view",
+      body: "The Compare view plays both runs in sync so you can see the delivery ratio, queue pressure and route-churn delta side by side. The predictive controller fires its handover ~10–15 s earlier, trading a small extra route change for sustained throughput.",
+      action: () => {
+        setCompared(["demo-handover", "demo-baseline"]);
+        openRun("demo-handover").then(() => setView("compare"));
+      },
+      actionLabel: "Open compare view",
+    },
+    {
+      label: "5 / 5 · Honest limitations",
+      cue: "4:30 – 5:00",
+      heading: "Calibration & caveats",
+      body: "• Queue-forecast EWMA error is worse than persistence under bursts/overload.\n• The 50 ms Control deadline is mostly infeasible at the stress link rate (10 Mbps ISL, 2 Mbps ground are design assumptions).\n• All gains are workload-dependent — do not generalise without recalibration on measured LENS data.",
+      action: () => { setDemoStep(null); },
+      actionLabel: "Close walkthrough",
+    },
+  ] as const;
+
+  type DemoStage = (typeof DEMO_STAGES)[number];
+  function runDemoStage(s: DemoStage) { s.action(); }
+
   if (bootError)
     return (
       <div className="boot-error">
@@ -1203,6 +1270,14 @@ function App() {
                     >
                       <Maximize2 size={14} />
                     </button>
+                    <button
+                      className={`icon-button ${demoStep !== null ? "selected" : ""}`}
+                      title="Mentor demo walkthrough"
+                      aria-label="Start mentor demo"
+                      onClick={() => setDemoStep(demoStep !== null ? null : 0)}
+                    >
+                      <Presentation size={14} />
+                    </button>
                   </div>
                 </div>
                 <div className="globe-canvas">{globe}</div>
@@ -1423,6 +1498,57 @@ function App() {
                                 }
                               </b>
                             </div>
+                            {/* Link lifetime badges — one row per active link */}
+                            {current.links
+                              .filter(
+                                (l) => l.a === node.id || l.b === node.id,
+                              )
+                              .slice(0, 6)
+                              .map((l) => {
+                                const peer =
+                                  nodes[l.a === node.id ? l.b : l.a];
+                                // Check if this link is present in the next frame (look-ahead)
+                                const nextFrame = run.frames.find(
+                                  (f) => f.time_s > time,
+                                );
+                                const stillUp = nextFrame
+                                  ? nextFrame.links.some(
+                                      (nl) =>
+                                        (nl.a === l.a && nl.b === l.b) ||
+                                        (nl.a === l.b && nl.b === l.a),
+                                    )
+                                  : true;
+                                const delayMs = (l.delay_s * 1000).toFixed(1);
+                                // Warn if delay > 40 ms (approaching link budget) or link drops next frame
+                                const warn =
+                                  !stillUp || l.delay_s > 0.04;
+                                return (
+                                  <div
+                                    key={l.id}
+                                    className={`link-lifetime-badge${warn ? " warning" : ""}`}
+                                    title={
+                                      !stillUp
+                                        ? "Link drops in the next snapshot"
+                                        : `Propagation delay ${delayMs} ms`
+                                    }
+                                  >
+                                    {warn ? (
+                                      <AlertTriangle size={10} />
+                                    ) : (
+                                      <Link2 size={10} />
+                                    )}
+                                    <span>
+                                      {peer?.name ?? `node-${l.a === node.id ? l.b : l.a}`}
+                                    </span>
+                                    <small>{delayMs} ms</small>
+                                    {!stillUp && (
+                                      <small className="link-drop-label">
+                                        dropping
+                                      </small>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             {["X · ECEF", "Y · ECEF", "Z · ECEF"].map(
                               (label, i) => (
                                 <div className="detail-line" key={label}>
@@ -2132,6 +2258,67 @@ function App() {
           </button>
         </div>
       )}
+      {/* ── Mentor demo walkthrough overlay ──────────────────────── */}
+      {demoStep !== null && (() => {
+        const stage = DEMO_STAGES[demoStep];
+        return (
+          <div className="demo-walkthrough" role="complementary" aria-label="Mentor demo guide">
+            <div className="demo-header">
+              <Presentation size={14} />
+              <span className="demo-cue-label">{stage.label}</span>
+              <button
+                className="icon-button demo-close"
+                aria-label="Close walkthrough"
+                onClick={() => setDemoStep(null)}
+              >
+                <X size={13} />
+              </button>
+            </div>
+            <div className="demo-cue">{stage.cue}</div>
+            <h3 className="demo-heading">{stage.heading}</h3>
+            <p className="demo-body">{stage.body}</p>
+            <div className="demo-actions">
+              <button
+                className="primary-button demo-action-btn"
+                onClick={() => runDemoStage(stage)}
+              >
+                {stage.actionLabel}
+                <ArrowRight size={13} />
+              </button>
+            </div>
+            <div className="demo-nav">
+              <button
+                className="secondary-button demo-prev"
+                disabled={demoStep === 0}
+                onClick={() => setDemoStep((s) => Math.max(0, (s ?? 0) - 1))}
+              >
+                ← Prev
+              </button>
+              <span className="demo-pip-row">
+                {DEMO_STAGES.map((_, i) => (
+                  <button
+                    key={i}
+                    className={`demo-pip ${i === demoStep ? "active" : ""}`}
+                    aria-label={`Stage ${i + 1}`}
+                    onClick={() => setDemoStep(i)}
+                  />
+                ))}
+              </span>
+              <button
+                className="secondary-button demo-next"
+                disabled={demoStep === DEMO_STAGES.length - 1}
+                onClick={() =>
+                  setDemoStep((s) =>
+                    Math.min(DEMO_STAGES.length - 1, (s ?? 0) + 1),
+                  )
+                }
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
