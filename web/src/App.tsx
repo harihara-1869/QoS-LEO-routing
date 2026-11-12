@@ -1165,12 +1165,13 @@ function App() {
                 presets={presets}
                 onPreset={(c) => {
                   setDraft(c);
+                  const pName =
+                    presets.find(
+                      (p) =>
+                        JSON.stringify(p.scenario) === JSON.stringify(c),
+                    )?.name ?? "Custom mission";
                   setName(
-                    "Aurora · " +
-                      (presets.find(
-                        (p) =>
-                          JSON.stringify(p.scenario) === JSON.stringify(c),
-                      )?.name ?? "Custom mission"),
+                    pName.startsWith("Aurora") ? pName : `Aurora · ${pName}`,
                   );
                 }}
                 onPreview={generatePreview}
@@ -1593,22 +1594,24 @@ function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              className="modal-close icon-button"
+              className="modal-close-btn"
               aria-label="Close launch"
               onClick={() => setLaunchOpen(false)}
             >
-              <X size={18} />
+              <X size={16} />
             </button>
-            <span className="modal-symbol">
-              <Orbit size={31} />
-            </span>
-            <span className="eyebrow">A NEW ORBITAL EXPERIMENT</span>
-            <h2 id="launch-title">Ready for launch.</h2>
-            <p>
+            <div className="modal-eyebrow">
+              <Orbit size={16} style={{ color: "var(--acc)" }} />
+              <span>A NEW ORBITAL EXPERIMENT</span>
+            </div>
+            <h2 id="launch-title" style={{ margin: "4px 0 6px", fontSize: "22px", letterSpacing: "-0.02em" }}>
+              Ready for launch.
+            </h2>
+            <p className="sub" style={{ margin: "0 0 16px", fontSize: "14px" }}>
               Your configuration is frozen for this run. The Python orbital
               model and ns-3 engine produce every metric.
             </p>
-            <label className="field">
+            <label className="field-label" style={{ marginBottom: "14px" }}>
               <span>Mission name</span>
               <input
                 autoFocus
@@ -1617,9 +1620,10 @@ function App() {
                 onChange={(e) => setName(e.target.value)}
               />
             </label>
-            <label className="field">
+            <label className="field-label" style={{ marginBottom: "14px" }}>
               <span>Routing policy</span>
               <select
+                className="sel"
                 aria-label="Routing policy"
                 value={policy}
                 onChange={(e) => setPolicy(e.target.value)}
@@ -1634,7 +1638,7 @@ function App() {
               </select>
             </label>
             {policies.find((p) => p.id === policy)?.checkpoint_required && (
-              <label className="field">
+              <label className="field-label" style={{ marginBottom: "14px" }}>
                 <span>Checkpoint manifest ID</span>
                 <input
                   aria-label="Checkpoint manifest ID"
@@ -1642,31 +1646,30 @@ function App() {
                   onChange={(e) => setCheckpoint(e.target.value)}
                   placeholder="Select a compatible registered checkpoint"
                 />
-                <small>
+                <small style={{ color: "var(--mute)", fontSize: "11px", marginTop: "2px" }}>
                   Observation/action compatibility is validated by the policy
                   backend.
                 </small>
               </label>
             )}
             <div className="launch-summary">
-              <span>
-                <Satellite size={15} />
-                {draft.constellation.n_planes *
-                  draft.constellation.sats_per_plane}{" "}
-                satellites
+              <span className="launch-chip">
+                <Satellite size={14} style={{ color: "var(--acc)" }} />
+                <b>{(draft?.constellation?.n_planes ?? run.scenario.constellation?.n_planes ?? 10) *
+                  (draft?.constellation?.sats_per_plane ?? run.scenario.constellation?.sats_per_plane ?? 20)}</b> satellites
               </span>
-              <span>
-                <Clock3 size={15} />
-                {draft.duration_s} s simulated
+              <span className="launch-chip">
+                <Clock3 size={14} style={{ color: "var(--acc)" }} />
+                <b>{(draft?.duration_s ?? run.duration_s).toFixed(1)}s</b> simulated
               </span>
-              <span>
-                <MapPin size={15} />
-                {draft.ground_stations.length} stations
+              <span className="launch-chip">
+                <MapPin size={14} style={{ color: "var(--acc)" }} />
+                <b>{(draft?.ground_stations?.length ?? run.scenario.ground_stations?.length ?? 4)}</b> stations
               </span>
             </div>
             {!online && (
               <div className="warning-note">
-                <TriangleAlert size={16} />
+                <TriangleAlert size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
                 <span>
                   The local API is offline. Start the app with Docker Compose to
                   launch simulations. The bundled recorded replay remains
@@ -1674,37 +1677,41 @@ function App() {
                 </span>
               </div>
             )}
-            <button
-              className="primary-button full launch-confirm"
-              disabled={
-                busy ||
-                !online ||
-                !cap?.engine_available ||
-                Boolean(
-                  policies.find((p) => p.id === policy)?.checkpoint_required &&
-                  !checkpoint.trim(),
-                )
-              }
-              onClick={launch}
-            >
-              {busy ? (
-                <RefreshCw size={16} className="spin" />
-              ) : (
-                <Play size={16} />
-              )}
-              Launch simulation
-              <ArrowRight size={16} />
-            </button>
-            <button
-              className="text-button full"
-              onClick={() => {
-                setLaunchOpen(false);
-                setView("studio");
-              }}
-            >
-              Review constellation setup
-              <ArrowUpRight size={13} />
-            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "18px" }}>
+              <button
+                className="btn pri full"
+                style={{ justifyContent: "center", padding: "12px 18px", fontWeight: 600, fontSize: "14px" }}
+                disabled={
+                  busy ||
+                  !online ||
+                  !cap?.engine_available ||
+                  Boolean(
+                    policies.find((p) => p.id === policy)?.checkpoint_required &&
+                    !checkpoint.trim(),
+                  )
+                }
+                onClick={launch}
+              >
+                {busy ? (
+                  <RefreshCw size={16} className="spin" />
+                ) : (
+                  <Play size={16} />
+                )}
+                Launch simulation
+                <ArrowRight size={16} />
+              </button>
+              <button
+                className="btn full"
+                style={{ justifyContent: "center", fontSize: "13px", color: "var(--mute)" }}
+                onClick={() => {
+                  setLaunchOpen(false);
+                  setView("studio");
+                }}
+              >
+                Review constellation setup
+                <ArrowUpRight size={13} />
+              </button>
+            </div>
           </div>
         </div>
       )}
