@@ -35,6 +35,8 @@ export function Library({
 }) {
   const [search, setSearch] = useState(""),
     [status, setStatus] = useState("all"),
+    [filterPolicy, setFilterPolicy] = useState("all"),
+    [filterScenario, setFilterScenario] = useState("all"),
     [importing, setImporting] = useState(false),
     [candidates, setCandidates] = useState<{ path: string; name: string }[]>(
       [],
@@ -56,9 +58,33 @@ export function Library({
       previous?.focus();
     };
   }, [importing]);
+  const scenarioOptions = [...new Set(runs.map((r) => {
+    const name = r.name.toLowerCase();
+    if (name.includes("burst")) return "burst";
+    if (name.includes("handover")) return "handover";
+    if (name.includes("hotspot")) return "hotspot";
+    if (name.includes("overload")) return "overload";
+    if (name.includes("normal") || name.includes("aurora")) return "normal";
+    return "other";
+  }))].sort();
+
+  function getScenarioLabel(name: string): string {
+    const n = name.toLowerCase();
+    if (n.includes("burst")) return "burst";
+    if (n.includes("handover")) return "handover";
+    if (n.includes("hotspot")) return "hotspot";
+    if (n.includes("overload")) return "overload";
+    if (n.includes("normal") || n.includes("aurora")) return "normal";
+    return "other";
+  }
+
+  const policyOptions = [...new Set(runs.map((r) => r.policy))].sort();
+
   const filtered = runs.filter(
     (r) =>
       (status === "all" || r.status === status) &&
+      (filterPolicy === "all" || r.policy === filterPolicy) &&
+      (filterScenario === "all" || getScenarioLabel(r.name) === filterScenario) &&
       `${r.name} ${r.policy} ${r.id}`
         .toLowerCase()
         .includes(search.toLowerCase()),
@@ -167,6 +193,35 @@ export function Library({
         }}
       />
       <div className="run-table">
+        <div className="lib-filters">
+          <span className="lib-filter-label">POLICY</span>
+          <select
+            className="lib-filter-select"
+            aria-label="Filter by policy"
+            value={filterPolicy}
+            onChange={(e) => setFilterPolicy(e.target.value)}
+          >
+            <option value="all">all</option>
+            {policyOptions.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+          <span className="lib-filter-label">SCENARIO</span>
+          <select
+            className="lib-filter-select"
+            aria-label="Filter by scenario"
+            value={filterScenario}
+            onChange={(e) => setFilterScenario(e.target.value)}
+          >
+            <option value="all">all</option>
+            {scenarioOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <span style={{ marginLeft: "auto", fontSize: "9px", color: "var(--muted)" }}>
+            {filtered.length} runs
+          </span>
+        </div>
         <div className="run-table-head">
           <span />
           <span>MISSION / RUN ID</span>
@@ -200,6 +255,23 @@ export function Library({
                   </small>
                 </span>
               </button>
+              <div className="run-headline-metrics">
+                {r.metrics?.delivery_ratio != null && (
+                  <span className={`run-metric-chip ${r.metrics.delivery_ratio > 0.9 ? "good" : r.metrics.delivery_ratio < 0.6 ? "warn" : ""}`}>
+                    {(r.metrics.delivery_ratio * 100).toFixed(0)}% delivery
+                  </span>
+                )}
+                {r.metrics?.delay_p95_s != null && (
+                  <span className={`run-metric-chip ${r.metrics.delay_p95_s < 0.08 ? "good" : r.metrics.delay_p95_s > 0.15 ? "warn" : ""}`}>
+                    {(r.metrics.delay_p95_s * 1000).toFixed(0)} ms p95
+                  </span>
+                )}
+                {r.metrics?.goodput_bps != null && (
+                  <span className="run-metric-chip">
+                    {(r.metrics.goodput_bps / 1e6).toFixed(2)} Mbps
+                  </span>
+                )}
+              </div>
               <span className="policy-name">
                 {r.policy.replaceAll("_", " ")}
               </span>
