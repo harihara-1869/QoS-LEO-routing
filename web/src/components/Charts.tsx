@@ -1,6 +1,8 @@
 import { useId } from "react";
+import { TriangleAlert } from "lucide-react";
 import { queuePeak } from "../lib/model";
-import type { Frame } from "../lib/types";
+import type { Frame, LinkData, Metrics, RunEvent, Scenario } from "../lib/types";
+
 export function Trend({
   frames,
   field,
@@ -103,6 +105,7 @@ export function Trend({
     </div>
   );
 }
+
 export function Sparkline({
   values,
   color = "#a8ecd8",
@@ -125,5 +128,168 @@ export function Sparkline({
         strokeWidth="1.5"
       />
     </svg>
+  );
+}
+
+// ── DeadlineTracker ──────────────────────────────────────────────────────────
+
+type QosTargets = Record<string, { deadline_s?: number } | undefined>;
+
+function getRatio(ratio: number): string {
+  return `${(ratio * 100).toFixed(1)}%`;
+}
+
+function barColor(ratio: number, classColor: string): string {
+  if (ratio < 0.5) return "var(--danger, #ef4444)";
+  if (ratio < 0.75) return "var(--warn, #f59e0b)";
+  return classColor;
+}
+
+export function DeadlineTracker({
+  metrics,
+  scenario,
+}: {
+  metrics: Metrics | null;
+  scenario: Scenario;
+}) {
+  const targets = (scenario.qos as { targets?: QosTargets } | undefined)
+    ?.targets;
+
+  const controlDeadline =
+    (targets?.["CONTROL"]?.deadline_s ?? 0.05) * 1000;
+  const realtimeDeadline =
+    (targets?.["REALTIME"]?.deadline_s ?? 0.1) * 1000;
+
+  const controlMetrics = metrics?.classes?.["CONTROL"];
+  const realtimeMetrics = metrics?.classes?.["REALTIME"];
+  const bulkMetrics = metrics?.classes?.["BULK"];
+
+  const controlRatio = controlMetrics?.deadline_success ?? null;
+  const realtimeRatio = realtimeMetrics?.deadline_success ?? null;
+  const bulkRatio =
+    bulkMetrics != null && bulkMetrics.generated > 0
+      ? bulkMetrics.delivered / bulkMetrics.generated
+      : null;
+
+  const rows: {
+    label: string;
+    ratio: number | null;
+    classColor: string;
+    target?: string;
+  }[] = [
+    {
+      label: "CONTROL",
+      ratio: controlRatio,
+      classColor: "#60a5fa",
+      target: `${controlDeadline.toFixed(0)} ms target`,
+    },
+    {
+      label: "REALTIME",
+      ratio: realtimeRatio,
+      classColor: "#a78bfa",
+      target: `${realtimeDeadline.toFixed(0)} ms target`,
+    },
+    {
+      label: "BULK",
+      ratio: bulkRatio,
+      classColor: "#34d399",
+    },
+  ];
+
+  return (
+    <div className="deadline-tracker">
+      {rows.map(({ label, ratio, classColor, target }) => {
+        const fill = ratio != null ? barColor(ratio, classColor) : classColor;
+        const pct = ratio != null ? ratio * 100 : 0;
+        return (
+          <div key={label}>
+            <div className="deadline-bar-wrap">
+              <span className="deadline-bar-label">{label}</span>
+              <div className="deadline-bar-bg">
+                <div
+                  className="deadline-bar-fill"
+                  style={{ width: `${pct}%`, background: fill }}
+                />
+              </div>
+              <span className="deadline-bar-value">
+                {ratio != null ? getRatio(ratio) : "—"}
+              </span>
+            </div>
+            {target && (
+              <div
+                style={{
+                  paddingLeft: "68px",
+                  fontSize: "8px",
+                  color: "var(--muted, #5a7a8a)",
+                  marginTop: "2px",
+                }}
+              >
+                {target}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── QueueBreakdown ───────────────────────────────────────────────────────────
+
+export function QueueBreakdown({
+  queues,
+  links,
+}: {
+  queues: Frame["queues"];
+  links: LinkData[];
+}) {
+  const totalPackets = queues.reduce((sum, q) => sum + (q.packets ?? 0), 0);
+  const maxQueue = links.reduce((sum, l) => sum + l.queue_packets * 2, 0);
+  const pressure = maxQueue > 0 ? totalPackets / maxQueue : 0;
+
+  const fillColor = pressure > 0.7 ? "#f59e0b" : "#4e8fa8";
+  const pct = Math.min(pressure * 100, 100);
+
+  return (
+    <div className="queue-breakdown">
+      {pressure > 0.7 && (
+        <div className="congestion-alert">
+          <TriangleAlert size={12} />
+          High queue pressure — congestion likely
+        </div>
+      )}
+      <div className="queue-class-row">
+        <span className="deadline-bar-label">TOTAL QUEUE</span>
+        <div className="deadline-bar-bg">
+          <div
+            className="deadline-bar-fill"
+            style={{ width: `${pct}%`, background: fillColor }}
+          />
+        </div>
+        <span className="deadline-bar-value">
+          {totalPackets}/{maxQueue}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ── RouteChurnCounter ────────────────────────────────────────────────────────
+
+export function RouteChurnCounter({ events }: { events: RunEvent[] }) {
+  const count = events.filter((e) => {
+    const t = e.title.toLowerCase();
+    return (
+      e.kind === "route_change" ||
+      t.includes("route") ||
+      t.includes("handover")
+    );
+  }).length;
+
+  return (
+    <div className="route-churn-row">
+      <span>Route changes</span>
+      <span className="churn-count">{count}</span>
+    </div>
   );
 }
