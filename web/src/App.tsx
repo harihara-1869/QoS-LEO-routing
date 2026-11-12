@@ -753,9 +753,6 @@ function App() {
   );
   return (
     <div className={`app ${theme === "light" ? "light-theme" : ""} ${presentation ? "presentation" : ""}`}>
-      <a className="skip-link" href="#main">
-        Skip to mission workspace
-      </a>
       <header className="app-header">
         <div
           className="logo"

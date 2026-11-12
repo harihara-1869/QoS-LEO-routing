@@ -419,7 +419,7 @@ export default function Globe(props: GlobeProps) {
     <SceneBoundary fallback={fallback}>
       <Canvas
         key={props.reset}
-        camera={{ position: [2.8, 1.3, -2.6], fov: 38, near: 0.01, far: 50 }}
+        camera={{ position: [3.2, 1.4, -3.0], fov: 38, near: 0.01, far: 50 }}
         dpr={[1, 1.75]}
         gl={{ antialias: true, alpha: true }}
       >
