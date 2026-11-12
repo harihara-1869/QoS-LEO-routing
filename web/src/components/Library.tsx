@@ -201,7 +201,9 @@ export function Library({
                       {r.name}
                     </b>
                     <small style={{ color: "var(--mute)", display: "block", fontSize: "12px" }}>
-                      Bundled verified run · {r.duration_s?.toFixed(1) ?? "5.0"} s episode
+                      {r.duration_s != null
+                        ? `${r.duration_s.toFixed(1)} s run`
+                        : "Duration unavailable"}
                     </small>
                   </td>
                   <td>

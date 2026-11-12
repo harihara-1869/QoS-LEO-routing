@@ -608,6 +608,15 @@ function App() {
     activeLive = Boolean(live && !terminal.has(live.status)),
     nodes = run?.nodes ?? [],
     policies = cap?.policies ?? fallbackPolicies;
+  const policyLabel =
+    policies.find((p) => p.id === run?.policy)?.label ??
+    run?.policy?.replaceAll("_", " ") ??
+    "—";
+  const metrics = current?.metrics ?? run?.frames.at(-1)?.metrics ?? null;
+  const delivered = metrics?.delivered;
+  const dropped = metrics?.dropped;
+  const inFlight = metrics?.in_flight;
+  const generated = metrics?.generated;
   const demoRecord: RunRecord | undefined = demo.current
     ? {
         id: demo.current.id,
@@ -775,13 +784,19 @@ function App() {
       />
     </Suspense>
   );
-  const classSuccess = (key: "CONTROL" | "REALTIME" | "BULK") => {
-    const metrics = current?.metrics?.classes?.[key];
-    if (!metrics) return 0;
+  const classSuccess = (
+    key: "CONTROL" | "REALTIME" | "BULK",
+  ): number | null => {
+    const data = metrics?.classes?.[key];
+    if (!data) return null;
     const ratio =
-      metrics.deadline_success ??
-      (metrics.generated > 0 ? metrics.delivered / metrics.generated : 0);
-    return Math.min(100, Math.max(0, ratio * 100));
+      data.deadline_success ??
+      (data.generated > 0 ? data.delivered / data.generated : null);
+    return ratio == null ? null : Math.min(100, Math.max(0, ratio * 100));
+  };
+  const classPercent = (key: "CONTROL" | "REALTIME" | "BULK") => {
+    const value = classSuccess(key);
+    return value != null ? `${value.toFixed(1)}%` : "—";
   };
   return (
     <div className={`app ${theme === "light" ? "light-theme" : ""} ${presentation ? "presentation" : ""}`}>
@@ -863,7 +878,10 @@ function App() {
                   controllers use the same capability contract.
                 </p>
               </div>
-              <span className="badge">6 engineered baselines</span>
+              <span className="badge">
+                {policies.length} engineered baseline
+                {policies.length === 1 ? "" : "s"}
+              </span>
             </div>
             <div className="pol">
               {policies.map((p) => {
@@ -926,15 +944,26 @@ function App() {
                 : (library.find((r) => r.id === secondId) ?? run);
             const metA = missionA.frames.at(-1)?.metrics ?? current?.metrics;
             const metB = "frames" in (missionB ?? {}) ? (missionB as Replay).frames.at(-1)?.metrics : (missionB as RunRecord)?.metrics;
-            const delA = (metA?.delivery_ratio ?? 0.899) * 100;
-            const delB = (metB?.delivery_ratio ?? 0.67) * 100;
-            const latA = metA?.delay_p95_s != null ? metA.delay_p95_s * 1000 : 225.4;
-            const latB = metB?.delay_p95_s != null ? metB.delay_p95_s * 1000 : 245.0;
-            const gpA = (metA?.goodput_bps ?? 6850000) / 1e6;
-            const gpB = (metB?.goodput_bps ?? 4270000) / 1e6;
-            const diffDel = delA - delB;
-            const diffLat = latA - latB;
-            const diffGp = gpA - gpB;
+            const delA =
+              metA?.delivery_ratio != null ? metA.delivery_ratio * 100 : null;
+            const delB =
+              metB?.delivery_ratio != null ? metB.delivery_ratio * 100 : null;
+            const latA =
+              metA?.delay_p95_s != null ? metA.delay_p95_s * 1000 : null;
+            const latB =
+              metB?.delay_p95_s != null ? metB.delay_p95_s * 1000 : null;
+            const gpA =
+              metA?.goodput_bps != null ? metA.goodput_bps / 1e6 : null;
+            const gpB =
+              metB?.goodput_bps != null ? metB.goodput_bps / 1e6 : null;
+            const latScale = Math.max(1, latA ?? 0, latB ?? 0);
+            const gpScale = Math.max(1, gpA ?? 0, gpB ?? 0);
+            const diffDel =
+              delA != null && delB != null ? delA - delB : null;
+            const diffLat =
+              latA != null && latB != null ? latA - latB : null;
+            const diffGp =
+              gpA != null && gpB != null ? gpA - gpB : null;
 
             return (
               <section className="view">
@@ -1011,13 +1040,13 @@ function App() {
                         Packet delivery
                       </div>
                       <div className="v win">
-                        {delA.toFixed(1)}
+                        {delA != null ? delA.toFixed(1) : "—"}
                         <small>%</small>
                       </div>
                       <div className="bar">
                         <u
                           style={{
-                            width: `${Math.min(100, delA)}%`,
+                            width: `${delA != null ? Math.min(100, delA) : 0}%`,
                             background: "var(--acc)",
                           }}
                         />
@@ -1028,12 +1057,12 @@ function App() {
                         Latency p95
                       </div>
                       <div className="v win">
-                        {latA.toFixed(1)} <small>ms</small>
+                        {latA != null ? latA.toFixed(1) : "—"} <small>ms</small>
                       </div>
                       <div className="bar">
                         <u
                           style={{
-                            width: `${Math.min(100, (latA / 300) * 100)}%`,
+                            width: `${latA != null ? Math.min(100, (latA / latScale) * 100) : 0}%`,
                             background: "var(--acc)",
                           }}
                         />
@@ -1044,12 +1073,12 @@ function App() {
                         Goodput
                       </div>
                       <div className="v win">
-                        {gpA.toFixed(2)} <small>Mbps</small>
+                        {gpA != null ? gpA.toFixed(2) : "—"} <small>Mbps</small>
                       </div>
                       <div className="bar">
                         <u
                           style={{
-                            width: `${Math.min(100, (gpA / 10) * 100)}%`,
+                            width: `${gpA != null ? Math.min(100, (gpA / gpScale) * 100) : 0}%`,
                             background: "var(--acc)",
                           }}
                         />
@@ -1075,13 +1104,13 @@ function App() {
                         Packet delivery
                       </div>
                       <div className="v">
-                        {delB.toFixed(1)}
+                        {delB != null ? delB.toFixed(1) : "—"}
                         <small>%</small>
                       </div>
                       <div className="bar">
                         <u
                           style={{
-                            width: `${Math.min(100, delB)}%`,
+                            width: `${delB != null ? Math.min(100, delB) : 0}%`,
                             background: "var(--mute)",
                           }}
                         />
@@ -1092,12 +1121,12 @@ function App() {
                         Latency p95
                       </div>
                       <div className="v">
-                        {latB.toFixed(1)} <small>ms</small>
+                        {latB != null ? latB.toFixed(1) : "—"} <small>ms</small>
                       </div>
                       <div className="bar">
                         <u
                           style={{
-                            width: `${Math.min(100, (latB / 300) * 100)}%`,
+                            width: `${latB != null ? Math.min(100, (latB / latScale) * 100) : 0}%`,
                             background: "var(--mute)",
                           }}
                         />
@@ -1108,12 +1137,12 @@ function App() {
                         Goodput
                       </div>
                       <div className="v">
-                        {gpB.toFixed(2)} <small>Mbps</small>
+                        {gpB != null ? gpB.toFixed(2) : "—"} <small>Mbps</small>
                       </div>
                       <div className="bar">
                         <u
                           style={{
-                            width: `${Math.min(100, (gpB / 10) * 100)}%`,
+                            width: `${gpB != null ? Math.min(100, (gpB / gpScale) * 100) : 0}%`,
                             background: "var(--mute)",
                           }}
                         />
@@ -1127,10 +1156,9 @@ function App() {
                       Delivery
                     </span>
                     <b>
-                      {diffDel >= 0
-                        ? `+${diffDel.toFixed(1)}`
-                        : diffDel.toFixed(1)}{" "}
-                      pts
+                      {diffDel != null
+                        ? `${diffDel >= 0 ? "+" : ""}${diffDel.toFixed(1)} pts`
+                        : "—"}
                     </b>
                     <span style={{ fontSize: "12px", color: "var(--mute)" }}>
                       A relative to B
@@ -1142,13 +1170,17 @@ function App() {
                     </span>
                     <b
                       style={{
-                        color: diffLat <= 0 ? "var(--acc)" : "var(--bad)",
+                        color:
+                          diffLat == null
+                            ? "var(--mute)"
+                            : diffLat <= 0
+                              ? "var(--acc)"
+                              : "var(--bad)",
                       }}
                     >
-                      {diffLat >= 0
-                        ? `+${diffLat.toFixed(1)}`
-                        : diffLat.toFixed(1)}{" "}
-                      ms
+                      {diffLat != null
+                        ? `${diffLat >= 0 ? "+" : ""}${diffLat.toFixed(1)} ms`
+                        : "—"}
                     </b>
                     <span style={{ fontSize: "12px", color: "var(--mute)" }}>
                       A relative to B
@@ -1159,10 +1191,9 @@ function App() {
                       Goodput
                     </span>
                     <b>
-                      {diffGp >= 0
-                        ? `+${diffGp.toFixed(2)}`
-                        : diffGp.toFixed(2)}{" "}
-                      Mbps
+                      {diffGp != null
+                        ? `${diffGp >= 0 ? "+" : ""}${diffGp.toFixed(2)} Mbps`
+                        : "—"}
                     </b>
                     <span style={{ fontSize: "12px", color: "var(--mute)" }}>
                       A relative to B
@@ -1248,10 +1279,7 @@ function App() {
                   </span>
                 </h1>
                 <p className="sub">
-                  {run.name}, running on the{" "}
-                  {policies.find((p) => p.id === run.policy)?.label ??
-                    run.policy?.replaceAll("_", " ")}{" "}
-                  policy.
+                  {run.name}, running on the {policyLabel} policy.
                 </p>
               </div>
               <button
@@ -1353,10 +1381,7 @@ function App() {
               <aside className="card tele">
                 <h3>Packet delivery</h3>
                 <div className="big">
-                  {format.percent(
-                    current?.metrics?.delivery_ratio ??
-                      run.frames.at(-1)?.metrics?.delivery_ratio,
-                  )}
+                  {format.percent(metrics?.delivery_ratio)}
                 </div>
                 <div
                   style={{
@@ -1365,40 +1390,26 @@ function App() {
                     marginBottom: "10px",
                   }}
                 >
-                  {format.number(
-                    current?.metrics?.delivered ?? run.frames.at(-1)?.metrics?.delivered ?? 0,
-                  )}{" "}
-                  delivered of{" "}
-                  {format.number(
-                    (current?.metrics?.delivered ??
-                      run.frames.at(-1)?.metrics?.delivered ??
-                      0) +
-                      (current?.metrics?.dropped ?? run.frames.at(-1)?.metrics?.dropped ?? 0) +
-                      (current?.metrics?.in_flight ?? 0),
-                  )}{" "}
-                  generated
+                  {format.number(delivered)} delivered of{" "}
+                  {format.number(generated)} generated
                 </div>
 
                 <div className="row2">
                   <div>
                     <h3>Latency p95</h3>
                     <div className="mid">
-                      {(
-                        (current?.metrics?.delay_p95_s ??
-                        run.frames.at(-1)?.metrics?.delay_p95_s ??
-                        0) * 1000
-                      ).toFixed(1)}{" "}
+                      {metrics?.delay_p95_s != null
+                        ? (metrics.delay_p95_s * 1000).toFixed(1)
+                        : "—"}{" "}
                       <small>ms</small>
                     </div>
                   </div>
                   <div>
                     <h3>Goodput</h3>
                     <div className="mid">
-                      {(
-                        (current?.metrics?.goodput_bps ??
-                          run.frames.at(-1)?.metrics?.goodput_bps ??
-                          0) / 1e6
-                      ).toFixed(2)}{" "}
+                      {metrics?.goodput_bps != null
+                        ? (metrics.goodput_bps / 1e6).toFixed(2)
+                        : "—"}{" "}
                       <small>Mbps</small>
                     </div>
                   </div>
@@ -1406,21 +1417,15 @@ function App() {
 
                 <div className="cnt">
                   <div>
-                    {format.number(
-                      current?.metrics?.delivered ??
-                        run.frames.at(-1)?.metrics?.delivered ??
-                        0,
-                    )}
+                    {format.number(delivered)}
                     <small>delivered</small>
                   </div>
                   <div>
-                    {format.number(
-                      current?.metrics?.dropped ?? run.frames.at(-1)?.metrics?.dropped ?? 0,
-                    )}
+                    {format.number(dropped)}
                     <small>dropped</small>
                   </div>
                   <div>
-                    {format.number(current?.metrics?.in_flight ?? 0)}
+                    {format.number(inFlight)}
                     <small>in flight</small>
                   </div>
                 </div>
@@ -1432,11 +1437,11 @@ function App() {
                       <span>
                         Control<em>deadline success</em>
                       </span>
-                      <i>{classSuccess("CONTROL").toFixed(1)}%</i>
+                      <i>{classPercent("CONTROL")}</i>
                     </div>
                     <div className="bar">
                       <u
-                        style={{ width: `${classSuccess("CONTROL")}%` }}
+                        style={{ width: `${classSuccess("CONTROL") ?? 0}%` }}
                       />
                     </div>
                   </div>
@@ -1446,11 +1451,11 @@ function App() {
                       <span>
                         Realtime<em>deadline success</em>
                       </span>
-                      <i>{classSuccess("REALTIME").toFixed(1)}%</i>
+                      <i>{classPercent("REALTIME")}</i>
                     </div>
                     <div className="bar">
                       <u
-                        style={{ width: `${classSuccess("REALTIME")}%` }}
+                        style={{ width: `${classSuccess("REALTIME") ?? 0}%` }}
                       />
                     </div>
                   </div>
@@ -1460,11 +1465,11 @@ function App() {
                       <span>
                         Bulk<em>delivery</em>
                       </span>
-                      <i>{classSuccess("BULK").toFixed(1)}%</i>
+                      <i>{classPercent("BULK")}</i>
                     </div>
                     <div className="bar">
                       <u
-                        style={{ width: `${classSuccess("BULK")}%` }}
+                        style={{ width: `${classSuccess("BULK") ?? 0}%` }}
                       />
                     </div>
                   </div>
@@ -1477,7 +1482,11 @@ function App() {
                 <h3>Latency over time</h3>
                 <b>p95, cumulative</b>
                 <Sparkline
-                  values={run.frames.map((f) => (f.metrics?.delay_p95_s ?? 0) * 1000)}
+                  values={run.frames.flatMap((frame) =>
+                    frame.metrics?.delay_p95_s != null
+                      ? [frame.metrics.delay_p95_s * 1000]
+                      : [],
+                  )}
                   color="var(--acc)"
                 />
               </div>
@@ -1485,8 +1494,10 @@ function App() {
                 <h3>Network goodput</h3>
                 <b>run-window average</b>
                 <Sparkline
-                  values={run.frames.map(
-                    (f) => (f.metrics?.goodput_bps ?? 0) / 1e6,
+                  values={run.frames.flatMap((frame) =>
+                    frame.metrics?.goodput_bps != null
+                      ? [frame.metrics.goodput_bps / 1e6]
+                      : [],
                   )}
                   color="var(--acc)"
                 />
@@ -1503,20 +1514,9 @@ function App() {
                       </li>
                     ))
                   ) : (
-                    <>
-                      <li>
-                        <span>3.90 s</span>Topology transition
-                        <small>1 removed, 0 added</small>
-                      </li>
-                      <li>
-                        <span>4.10 s</span>Topology transition
-                        <small>0 removed, 1 added</small>
-                      </li>
-                      <li>
-                        <span>5.00 s</span>Replay complete
-                        <small>end of run</small>
-                      </li>
-                    </>
+                    <li className="ev-empty">
+                      No topology transitions recorded in this run.
+                    </li>
                   )}
                 </ul>
               </div>
@@ -1526,7 +1526,7 @@ function App() {
               <div className="card panel">
                 <h3>QoS deadline compliance</h3>
                 <b>Service-class latency SLAs</b>
-                <DeadlineTracker metrics={current?.metrics ?? null} scenario={run.scenario} />
+                <DeadlineTracker metrics={metrics} scenario={run.scenario} />
               </div>
               <div className="card panel">
                 <h3>Queue buffer occupancy</h3>
@@ -1539,7 +1539,7 @@ function App() {
               <div className="card panel">
                 <h3>Route stability</h3>
                 <b>Path changes & handover churn</b>
-                <RouteChurnCounter events={run.events ?? []} />
+                <RouteChurnCounter events={run.events ?? []} policy={policyLabel} />
               </div>
             </div>
           </section>

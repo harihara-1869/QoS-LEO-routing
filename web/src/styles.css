@@ -704,6 +704,17 @@ canvas.globe,
   font-variant-numeric: tabular-nums;
 }
 
+.spark-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 110px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--mute);
+  font-size: 12px;
+}
+
 .ev {
   list-style: none;
   margin: 8px 0 0;
@@ -726,6 +737,12 @@ canvas.globe,
 
 .ev small {
   color: var(--mute);
+}
+
+.ev li.ev-empty {
+  display: block;
+  color: var(--mute);
+  font-size: 13px;
 }
 
 /* Person 2 Extra Charts (DeadlineTracker, QueueBreakdown, RouteChurn) */

@@ -1,7 +1,14 @@
 import { useId } from "react";
 import { TriangleAlert } from "lucide-react";
 import { queuePeak } from "../lib/model";
-import type { Frame, LinkData, Metrics, RunEvent, Scenario } from "../lib/types";
+import type {
+  ClassName,
+  Frame,
+  LinkData,
+  Metrics,
+  RunEvent,
+  Scenario,
+} from "../lib/types";
 
 export function Trend({
   frames,
@@ -113,6 +120,8 @@ export function Sparkline({
   values: number[];
   color?: string;
 }) {
+  if (!values.length)
+    return <div className="spark-chart spark-empty">No recorded samples</div>;
   const max = Math.max(1, ...values);
   const precision = max >= 10 ? 0 : 1;
   const guides = [1, 0.75, 0.5, 0.25, 0].map((q) => ({
@@ -189,11 +198,15 @@ export function DeadlineTracker({
 }) {
   const targets = (scenario.qos as { targets?: QosTargets } | undefined)
     ?.targets;
+  const flowDeadline = (className: ClassName) =>
+    scenario.flows.find(
+      (flow) => flow.flow_type === className && flow.deadline_s != null,
+    )?.deadline_s;
 
   const controlDeadline =
-    (targets?.["CONTROL"]?.deadline_s ?? 0.05) * 1000;
+    targets?.["CONTROL"]?.deadline_s ?? flowDeadline("CONTROL");
   const realtimeDeadline =
-    (targets?.["REALTIME"]?.deadline_s ?? 0.1) * 1000;
+    targets?.["REALTIME"]?.deadline_s ?? flowDeadline("REALTIME");
 
   const controlMetrics = metrics?.classes?.["CONTROL"];
   const realtimeMetrics = metrics?.classes?.["REALTIME"];
@@ -216,13 +229,19 @@ export function DeadlineTracker({
       label: "CONTROL",
       ratio: controlRatio,
       classColor: "var(--control-class)",
-      target: `${controlDeadline.toFixed(0)} ms target`,
+      target:
+        controlDeadline != null
+          ? `${(controlDeadline * 1000).toFixed(0)} ms target`
+          : undefined,
     },
     {
       label: "REALTIME",
       ratio: realtimeRatio,
       classColor: "var(--realtime-class)",
-      target: `${realtimeDeadline.toFixed(0)} ms target`,
+      target:
+        realtimeDeadline != null
+          ? `${(realtimeDeadline * 1000).toFixed(0)} ms target`
+          : undefined,
     },
     {
       label: "BULK",
@@ -272,8 +291,12 @@ export function QueueBreakdown({
     : typeof queues === "object" && queues !== null
       ? Object.values(queues).reduce((sum, p) => sum + (typeof p === "number" ? p : 0), 0)
       : 0;
-  const maxQueue = links.reduce((sum, l) => sum + (l.queue_packets ?? 500) * 2, 0) || 31040;
-  const pressure = maxQueue > 0 ? totalPackets / maxQueue : 0;
+  const totalCapacity = links.reduce(
+    (sum, link) => sum + (link.queue_packets ?? 0) * 2,
+    0,
+  );
+  const interfaceCount = links.length * 2;
+  const pressure = totalCapacity > 0 ? totalPackets / totalCapacity : 0;
   const pct = Math.min(pressure * 100, 100);
   const backlogged = Array.isArray(queues)
     ? queues.filter((q) => (q.packets ?? 0) > 0).length
@@ -307,14 +330,16 @@ export function QueueBreakdown({
         </div>
         <div style={{ background: "var(--bg)", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--line)" }}>
           <span style={{ color: "var(--mute)", display: "block", fontSize: "11px" }}>Total capacity</span>
-          <b style={{ color: "var(--ink)", fontSize: "14px" }}>{maxQueue.toLocaleString()}</b>
+          <b style={{ color: "var(--ink)", fontSize: "14px" }}>
+            {totalCapacity > 0 ? totalCapacity.toLocaleString() : "—"}
+          </b>
         </div>
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--mute)", marginTop: "10px" }}>
         <span>Active interfaces</span>
         <span style={{ fontFamily: "var(--mono)", color: "var(--ink)" }}>
-          {backlogged} / {links.length * 2 || 776} queues
+          {interfaceCount > 0 ? `${backlogged} / ${interfaceCount} queues` : "—"}
         </span>
       </div>
     </div>
@@ -323,7 +348,13 @@ export function QueueBreakdown({
 
 // ── RouteChurnCounter ────────────────────────────────────────────────────────
 
-export function RouteChurnCounter({ events }: { events: RunEvent[] }) {
+export function RouteChurnCounter({
+  events,
+  policy,
+}: {
+  events: RunEvent[];
+  policy: string;
+}) {
   const routeEvents = events.filter((e) => {
     const t = e.title.toLowerCase();
     const k = e.kind.toLowerCase();
@@ -336,15 +367,23 @@ export function RouteChurnCounter({ events }: { events: RunEvent[] }) {
     );
   });
   const count = routeEvents.length;
+  const first = routeEvents.reduce<number | null>(
+    (min, event) => (min == null || event.time_s < min ? event.time_s : min),
+    null,
+  );
+  const latest = routeEvents.reduce<number | null>(
+    (max, event) => (max == null || event.time_s > max ? event.time_s : max),
+    null,
+  );
 
   return (
     <div style={{ marginTop: "8px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <div style={{ font: "500 32px/1 var(--mono)", color: "var(--ink)", letterSpacing: "-0.03em" }}>
-          {count} <small style={{ fontSize: "14px", color: "var(--mute)" }}>handovers</small>
+          {count} <small style={{ fontSize: "14px", color: "var(--mute)" }}>route changes</small>
         </div>
         <span className="ok" style={{ fontSize: "11px" }}>
-          {count === 0 ? "✓ Stable continuity" : `${count} dynamic handovers`}
+          {count === 0 ? "✓ No route changes" : `${count} recorded changes`}
         </span>
       </div>
 
@@ -354,19 +393,23 @@ export function RouteChurnCounter({ events }: { events: RunEvent[] }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px", fontFamily: "var(--mono)" }}>
         <div style={{ background: "var(--bg)", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--line)" }}>
-          <span style={{ color: "var(--mute)", display: "block", fontSize: "11px" }}>Path stability</span>
-          <b style={{ color: "var(--ink)", fontSize: "14px" }}>{count === 0 ? "100%" : "Dynamic"}</b>
+          <span style={{ color: "var(--mute)", display: "block", fontSize: "11px" }}>First change</span>
+          <b style={{ color: "var(--ink)", fontSize: "14px" }}>
+            {first != null ? `${first.toFixed(2)} s` : "None"}
+          </b>
         </div>
         <div style={{ background: "var(--bg)", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--line)" }}>
-          <span style={{ color: "var(--mute)", display: "block", fontSize: "11px" }}>Link switches</span>
-          <b style={{ color: "var(--ink)", fontSize: "14px" }}>{count} events</b>
+          <span style={{ color: "var(--mute)", display: "block", fontSize: "11px" }}>Latest change</span>
+          <b style={{ color: "var(--ink)", fontSize: "14px" }}>
+            {latest != null ? `${latest.toFixed(2)} s` : "None"}
+          </b>
         </div>
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--mute)", marginTop: "10px" }}>
-        <span>Constellation routing</span>
+        <span>Routing policy</span>
         <span style={{ fontFamily: "var(--mono)", color: "var(--ink)" }}>
-          Predictive ISL tracking
+          {policy}
         </span>
       </div>
     </div>
