@@ -474,11 +474,16 @@ canvas.globe,
   background: var(--acc);
   color: var(--onacc);
   cursor: pointer;
-  font-size: 16px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
   transition: background 0.15s;
+}
+
+.play svg {
+  display: block;
+  fill: currentColor;
+  stroke-width: 1;
 }
 
 .play:hover {
@@ -502,6 +507,15 @@ canvas.globe,
 /* Telemetry Card */
 .tele {
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tele .cls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .tele h3,
@@ -626,6 +640,33 @@ canvas.globe,
   display: block;
 }
 
+.spark-chart {
+  position: relative;
+  margin-top: 8px;
+}
+
+.spark-chart svg {
+  margin-top: 0;
+}
+
+.spark-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.spark-guides span {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  font: 9px var(--mono);
+  line-height: 1;
+  color: var(--mute);
+  background: var(--panel);
+  padding-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
 .ev {
   list-style: none;
   margin: 8px 0 0;
@@ -656,6 +697,63 @@ canvas.globe,
   grid-template-columns: 1fr 1fr 1fr;
   gap: 18px;
   margin-top: 18px;
+}
+
+.deadline-tracker {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.deadline-bar-wrap {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 10px;
+}
+
+.deadline-bar-label {
+  font: 500 11px var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--mute);
+}
+
+.deadline-bar-bg {
+  height: 6px;
+  background: var(--track);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.deadline-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.3s;
+}
+
+.deadline-bar-value {
+  font: 500 13px var(--mono);
+  color: var(--ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.deadline-target {
+  font: 10px var(--mono);
+  color: var(--mute);
+  margin: 3px 0 0 86px;
+}
+
+.congestion-alert {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--chipwt);
+  background: var(--chipw);
+  border-radius: 6px;
+  padding: 5px 8px;
 }
 
 /* ── Constellation Studio View ───────────────────────────────────── */
