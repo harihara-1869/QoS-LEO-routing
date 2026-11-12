@@ -45,8 +45,6 @@ import {
   Presentation,
   Link2,
   AlertTriangle,
-  Sun,
-  Moon,
 } from "lucide-react";
 import type {
   Capabilities,
@@ -830,46 +828,54 @@ function App() {
       </a>
       <header className="topbar">
         <button
-          className="brand"
+          className="brand logo"
           onClick={() => setView("mission")}
           aria-label="Apogee mission home"
         >
           <img src="/assets/mark.svg" alt="" />
-          <span>
-            APOGEE<small>ORBITAL NETWORK LAB</small>
-          </span>
+          <div>
+            APOGEE<small>Orbital network lab</small>
+          </div>
         </button>
-        <div className="topbar-center">
+        <nav className="header-nav" id="nav">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              className={`nav-pill ${view === t.id ? "on" : ""}`}
+              onClick={() => setView(t.id)}
+            >
+              {t.label}
+              {t.id === "library" && library.length > 0 && (
+                <span className="nav-badge">{library.length}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="hd-r">
           <span className="connection-status">
-            <i className={online ? "connected" : ""} />
-            {online ? "LOCAL SYSTEM ONLINE" : "OFFLINE REPLAY"}
+            <i className={`dot ${online ? "connected" : ""}`} />
+            {online ? "Local system online" : "Offline replay"}
           </span>
-          <span className="top-divider" />
-          <span className="epoch-clock">
-            {elapsed}
-            <small>UTC</small>
-          </span>
-        </div>
-        <div className="topbar-actions">
+          <span className="epoch-clock t">{elapsed} UTC</span>
           <button
-            className="icon-button theme-toggle"
-            title={theme === "light" ? "Switch to dark mode" : "Switch to academic light theme"}
+            className="tg"
+            title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
             aria-label="Toggle color theme"
             onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
           >
-            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+            {theme === "light" ? "☾" : "☀"}
           </button>
           <button
-            className="icon-button"
+            className="tg"
             title="Presentation mode"
             aria-label="Toggle presentation mode"
             onClick={presentationMode}
           >
-            <Expand size={17} />
+            <Expand size={15} />
           </button>
           <span className="user-avatar" title="Ayush Ranjan">A</span>
-          <button className="primary-button launch-header" onClick={openLaunch}>
-            <Plus size={15} />
+          <button className="btn pri launch-header" onClick={openLaunch}>
+            <Plus size={14} />
             New simulation
           </button>
         </div>
