@@ -4466,3 +4466,68 @@ small {
 .app.light-theme .comparison-class-heading {
   color: #64748b;
 }
+
+/* ── Constellation Studio Light Theme Overrides ── */
+.app.light-theme .studio-footer {
+  background: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+.app.light-theme .estimate {
+  color: #0f172a !important;
+}
+.app.light-theme .estimate small {
+  color: #64748b !important;
+}
+.app.light-theme .panel-tabs {
+  border-bottom: 1px solid #e2e8f0;
+}
+.app.light-theme .panel-tabs > button {
+  color: #64748b;
+}
+.app.light-theme .panel-tabs > button.active {
+  color: #0f766e;
+  border-bottom-color: #0f766e;
+  font-weight: 600;
+}
+.app.light-theme .preset-select > select {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+.app.light-theme .preset-select > span {
+  color: #64748b;
+}
+.app.light-theme .preset-select > svg {
+  color: #64748b;
+}
+.app.light-theme .field > span {
+  color: #475569;
+}
+.app.light-theme .field small {
+  color: #64748b;
+}
+.app.light-theme .field input,
+.app.light-theme .field select {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+.app.light-theme .section-heading h3 {
+  color: #0f172a;
+}
+.app.light-theme .section-heading > span {
+  color: #64748b;
+}
+.app.light-theme .row-index {
+  color: #94a3b8;
+}
+.app.light-theme .check-button {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #0f766e;
+}
+.app.light-theme .check-button.checked {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #ffffff;
+}
