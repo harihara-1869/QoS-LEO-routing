@@ -1,0 +1,27 @@
+{
+  "dataset": "LENS: A LEO Satellite Network Measurement Dataset",
+  "authors": "Jinwei Zhao and Jianping Pan (University of Victoria)",
+  "publication": "ACM MMSys 2024 (Open-Source Software and Dataset track)",
+  "source_url": "https://github.com/clarkzjw/LENS",
+  "zenodo_record": "https://zenodo.org/records/10663130",
+  "station_id": "seattle",
+  "station_location": "Seattle, WA, USA",
+  "dish_generation": "rev3_proto2",
+  "point_of_presence": "Seattle",
+  "service_tier": "Standard",
+  "date": "2024-01-15",
+  "license": "CC BY-SA 4.0 (dataset files), GPL-3.0 (repository code)",
+  "trace_type": "IRTT (Isochronous Round Trip Tester)",
+  "timestamp_units": "nanoseconds (Unix epoch)",
+  "metric_units": "milliseconds (ms)",
+  "loss_encoding": "-1 indicates packet loss; companion 0s represent directional loss reporting",
+  "filename": "seattle_20240115_irtt.csv",
+  "sample_count": 7200,
+  "sha256": "5e8f3408d5bb97fccbf82c7b5b78387128801ffcc9d0f4e36cc98f3662d80d28",
+  "filesize_bytes": 298808,
+  "time_span": {
+    "start_timestamp_ns": 1705276799999279549,
+    "end_timestamp_ns": 1705363187998856089,
+    "duration_hours": 24.0
+  }
+}

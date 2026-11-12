@@ -1,0 +1,46 @@
+{
+  "version": "1.0.0",
+  "calibration_name": "LENS Starlink Seattle rev3_proto2 (2024-01-15)",
+  "source_split": "calibration.csv",
+  "source_sha256": "31323fa7d07536e9b7da2a7a65d5c50d0546ebe6262bd6469611dee935789a3d",
+  "sample_count": 4320,
+  "observable_parameters": {
+    "ground_acquisition_s": 0.3,
+    "ground_hysteresis_deg": 0.5,
+    "ground_min_dwell_s": 0.5,
+    "access_base_rtt_ms": 36.989,
+    "access_median_rtt_ms": 46.298,
+    "access_queue_offset_ms": 9.309,
+    "access_jitter_stddev_ms": 5.071,
+    "access_p95_rtt_ms": 54.404,
+    "access_p99_rtt_ms": 58.949,
+    "empirical_loss_rate_pct": 2.708,
+    "uplink_ratio": 0.4597,
+    "downlink_ratio": 0.5403
+  },
+  "simulation_overrides": {
+    "links": {
+      "ground_acquisition_s": 0.3,
+      "ground_hysteresis_deg": 0.5,
+      "ground_min_dwell_s": 0.5
+    }
+  },
+  "architectural_limits": [
+    "Calibration fits observable endpoint delay, loss, and handover gaps only.",
+    "Internal satellite-to-satellite ISL queues and dynamic routing hops cannot be observed from endpoint RTT.",
+    "Assumes clear-sky standard conditions at Seattle ground terminal."
+  ],
+  "validation_report": {
+    "validation_file": "validation.csv",
+    "validation_sha256": "5f9a88452347ed3e76a653a7af81dd9bfaa406a1764ea3b5b3ba6d18a8d0d4ee",
+    "sample_count": 1440,
+    "held_out_errors": {
+      "median_rtt_error_ms": 0.972,
+      "p95_rtt_error_ms": 1.462,
+      "p99_rtt_error_ms": 1.952,
+      "loss_rate_error_pct": 0.139
+    },
+    "validation_passed": true
+  },
+  "calibration_sha256": "fa303d5fedab4998a3859aee5883109c5d26bfc1da7155f0243f2a41f69ce5b4"
+}

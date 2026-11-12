@@ -1,0 +1,126 @@
+{
+  "source_file": "seattle_20240115_irtt.csv",
+  "source_sha256": "5e8f3408d5bb97fccbf82c7b5b78387128801ffcc9d0f4e36cc98f3662d80d28",
+  "total_samples": 7200,
+  "split_ratios": {
+    "calibration": 0.6,
+    "validation": 0.2,
+    "test": 0.2
+  },
+  "splits": {
+    "calibration": {
+      "filename": "calibration.csv",
+      "sample_count": 4320,
+      "sha256": "31323fa7d07536e9b7da2a7a65d5c50d0546ebe6262bd6469611dee935789a3d",
+      "time_range_s": {
+        "start": 0.0,
+        "end": 51827.991927296,
+        "duration_s": 51827.99
+      },
+      "statistics": {
+        "total_probes": 4320,
+        "delivered_probes": 4203,
+        "lost_probes": 117,
+        "loss_rate_pct": 2.708,
+        "uplink_loss_rate_pct": 1.389,
+        "downlink_loss_rate_pct": 2.708,
+        "rtt_ms": {
+          "count": 4203,
+          "min_ms": 36.989,
+          "p25_ms": 42.058,
+          "median_ms": 46.298,
+          "p75_ms": 49.921,
+          "p95_ms": 54.404,
+          "p99_ms": 58.949,
+          "max_ms": 74.089,
+          "mean_ms": 46.276,
+          "stddev_ms": 5.071
+        },
+        "jitter_ms": {
+          "mean_jitter_ms": 3.026,
+          "median_jitter_ms": 2.342,
+          "p95_jitter_ms": 8.34,
+          "p99_jitter_ms": 12.589
+        },
+        "outage_events": 114,
+        "max_outage_duration_s": 24.01
+      }
+    },
+    "validation": {
+      "filename": "validation.csv",
+      "sample_count": 1440,
+      "sha256": "5f9a88452347ed3e76a653a7af81dd9bfaa406a1764ea3b5b3ba6d18a8d0d4ee",
+      "time_range_s": {
+        "start": 51839.99678208,
+        "end": 69107.996040192,
+        "duration_s": 17268.0
+      },
+      "statistics": {
+        "total_probes": 1440,
+        "delivered_probes": 1399,
+        "lost_probes": 41,
+        "loss_rate_pct": 2.847,
+        "uplink_loss_rate_pct": 1.25,
+        "downlink_loss_rate_pct": 2.847,
+        "rtt_ms": {
+          "count": 1399,
+          "min_ms": 37.299,
+          "p25_ms": 43.016,
+          "median_ms": 47.27,
+          "p75_ms": 51.064,
+          "p95_ms": 55.866,
+          "p99_ms": 60.901,
+          "max_ms": 68.874,
+          "mean_ms": 47.32,
+          "stddev_ms": 5.265
+        },
+        "jitter_ms": {
+          "mean_jitter_ms": 3.538,
+          "median_jitter_ms": 2.715,
+          "p95_jitter_ms": 9.747,
+          "p99_jitter_ms": 14.855
+        },
+        "outage_events": 40,
+        "max_outage_duration_s": 23.993
+      }
+    },
+    "test": {
+      "filename": "test.csv",
+      "sample_count": 1440,
+      "sha256": "0e4708ba936add957ea27ee939ee720ed29658b1ac268b52a7cb0779b8dadaf5",
+      "time_range_s": {
+        "start": 69120.006223104,
+        "end": 86387.999576576,
+        "duration_s": 17267.99
+      },
+      "statistics": {
+        "total_probes": 1440,
+        "delivered_probes": 1406,
+        "lost_probes": 34,
+        "loss_rate_pct": 2.361,
+        "uplink_loss_rate_pct": 1.319,
+        "downlink_loss_rate_pct": 2.361,
+        "rtt_ms": {
+          "count": 1406,
+          "min_ms": 37.023,
+          "p25_ms": 41.769,
+          "median_ms": 45.794,
+          "p75_ms": 49.671,
+          "p95_ms": 52.97,
+          "p99_ms": 57.226,
+          "max_ms": 64.549,
+          "mean_ms": 45.824,
+          "stddev_ms": 4.772
+        },
+        "jitter_ms": {
+          "mean_jitter_ms": 2.673,
+          "median_jitter_ms": 2.126,
+          "p95_jitter_ms": 7.099,
+          "p99_jitter_ms": 10.206
+        },
+        "outage_events": 34,
+        "max_outage_duration_s": 12.015
+      }
+    }
+  }
+}
