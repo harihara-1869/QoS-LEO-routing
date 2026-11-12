@@ -1559,15 +1559,21 @@ function App() {
 
             <div className="extra-charts">
               <div className="card panel">
+                <h3>QoS deadline compliance</h3>
+                <b>Service-class latency SLAs</b>
                 <DeadlineTracker metrics={current?.metrics ?? null} scenario={run.scenario} />
               </div>
               <div className="card panel">
+                <h3>Queue buffer occupancy</h3>
+                <b>Total satellite queue pressure</b>
                 <QueueBreakdown
-                  queues={current?.queues ?? {}}
+                  queues={current?.queues ?? []}
                   links={current?.links ?? []}
                 />
               </div>
               <div className="card panel">
+                <h3>Route stability</h3>
+                <b>Path changes & handover churn</b>
                 <RouteChurnCounter events={run.events ?? []} />
               </div>
             </div>

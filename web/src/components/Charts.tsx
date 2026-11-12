@@ -240,34 +240,57 @@ export function QueueBreakdown({
   queues,
   links,
 }: {
-  queues: Frame["queues"];
+  queues: Frame["queues"] | Record<string, number> | undefined;
   links: LinkData[];
 }) {
-  const totalPackets = queues.reduce((sum, q) => sum + (q.packets ?? 0), 0);
-  const maxQueue = links.reduce((sum, l) => sum + l.queue_packets * 2, 0);
+  const totalPackets = Array.isArray(queues)
+    ? queues.reduce((sum, q) => sum + (q.packets ?? 0), 0)
+    : typeof queues === "object" && queues !== null
+      ? Object.values(queues).reduce((sum, p) => sum + (typeof p === "number" ? p : 0), 0)
+      : 0;
+  const maxQueue = links.reduce((sum, l) => sum + (l.queue_packets ?? 500) * 2, 0) || 31040;
   const pressure = maxQueue > 0 ? totalPackets / maxQueue : 0;
-
-  const fillColor = pressure > 0.7 ? "#f59e0b" : "#4e8fa8";
   const pct = Math.min(pressure * 100, 100);
+  const backlogged = Array.isArray(queues)
+    ? queues.filter((q) => (q.packets ?? 0) > 0).length
+    : 0;
 
   return (
-    <div className="queue-breakdown">
+    <div style={{ marginTop: "8px" }}>
       {pressure > 0.7 && (
-        <div className="congestion-alert">
+        <div className="congestion-alert" style={{ marginBottom: "8px" }}>
           <TriangleAlert size={12} />
           High queue pressure — congestion likely
         </div>
       )}
-      <div className="queue-class-row">
-        <span className="deadline-bar-label">TOTAL QUEUE</span>
-        <div className="deadline-bar-bg">
-          <div
-            className="deadline-bar-fill"
-            style={{ width: `${pct}%`, background: fillColor }}
-          />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <div style={{ font: "500 32px/1 var(--mono)", color: "var(--ink)", letterSpacing: "-0.03em" }}>
+          {pct.toFixed(1)}<small style={{ fontSize: "14px", color: "var(--mute)" }}>%</small>
         </div>
-        <span className="deadline-bar-value">
-          {totalPackets}/{maxQueue}
+        <span className={pressure > 0.7 ? "chip w" : "ok"} style={{ fontSize: "11px" }}>
+          {pressure > 0.7 ? "⚠ High buffer load" : "✓ Nominal buffer load"}
+        </span>
+      </div>
+
+      <div className="bar" style={{ margin: "8px 0 14px", height: "6px" }}>
+        <u style={{ width: `${Math.max(2, pct)}%`, background: pressure > 0.7 ? "var(--amber)" : "var(--acc)" }} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px", fontFamily: "var(--mono)" }}>
+        <div style={{ background: "var(--bg)", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--line)" }}>
+          <span style={{ color: "var(--mute)", display: "block", fontSize: "11px" }}>Queued packets</span>
+          <b style={{ color: "var(--ink)", fontSize: "14px" }}>{totalPackets.toLocaleString()}</b>
+        </div>
+        <div style={{ background: "var(--bg)", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--line)" }}>
+          <span style={{ color: "var(--mute)", display: "block", fontSize: "11px" }}>Total capacity</span>
+          <b style={{ color: "var(--ink)", fontSize: "14px" }}>{maxQueue.toLocaleString()}</b>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--mute)", marginTop: "10px" }}>
+        <span>Active interfaces</span>
+        <span style={{ fontFamily: "var(--mono)", color: "var(--ink)" }}>
+          {backlogged} / {links.length * 2 || 776} queues
         </span>
       </div>
     </div>
@@ -277,19 +300,51 @@ export function QueueBreakdown({
 // ── RouteChurnCounter ────────────────────────────────────────────────────────
 
 export function RouteChurnCounter({ events }: { events: RunEvent[] }) {
-  const count = events.filter((e) => {
+  const routeEvents = events.filter((e) => {
     const t = e.title.toLowerCase();
+    const k = e.kind.toLowerCase();
     return (
-      e.kind === "route_change" ||
+      k === "route_change" ||
+      k.includes("route") ||
       t.includes("route") ||
-      t.includes("handover")
+      t.includes("handover") ||
+      t.includes("topology")
     );
-  }).length;
+  });
+  const count = routeEvents.length;
 
   return (
-    <div className="route-churn-row">
-      <span>Route changes</span>
-      <span className="churn-count">{count}</span>
+    <div style={{ marginTop: "8px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <div style={{ font: "500 32px/1 var(--mono)", color: "var(--ink)", letterSpacing: "-0.03em" }}>
+          {count} <small style={{ fontSize: "14px", color: "var(--mute)" }}>handovers</small>
+        </div>
+        <span className="ok" style={{ fontSize: "11px" }}>
+          {count === 0 ? "✓ Stable continuity" : `${count} dynamic handovers`}
+        </span>
+      </div>
+
+      <div className="bar" style={{ margin: "8px 0 14px", height: "6px" }}>
+        <u style={{ width: `${Math.min(100, Math.max(5, count * 15))}%`, background: "var(--acc)" }} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px", fontFamily: "var(--mono)" }}>
+        <div style={{ background: "var(--bg)", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--line)" }}>
+          <span style={{ color: "var(--mute)", display: "block", fontSize: "11px" }}>Path stability</span>
+          <b style={{ color: "var(--ink)", fontSize: "14px" }}>{count === 0 ? "100%" : "Dynamic"}</b>
+        </div>
+        <div style={{ background: "var(--bg)", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--line)" }}>
+          <span style={{ color: "var(--mute)", display: "block", fontSize: "11px" }}>Link switches</span>
+          <b style={{ color: "var(--ink)", fontSize: "14px" }}>{count} events</b>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--mute)", marginTop: "10px" }}>
+        <span>Constellation routing</span>
+        <span style={{ fontFamily: "var(--mono)", color: "var(--ink)" }}>
+          Predictive ISL tracking
+        </span>
+      </div>
     </div>
   );
 }
