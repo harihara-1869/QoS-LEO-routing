@@ -7,45 +7,30 @@ import {
   useState,
 } from "react";
 import {
-  Activity,
   ArrowDownToLine,
   ArrowRight,
   ArrowUpRight,
-  Bot,
-  BookmarkPlus,
-  Check,
-  ChevronDown,
-  ChevronRight,
   Clock3,
-  Crosshair,
-  Expand,
   FolderClock,
   GitCompareArrows,
   Info,
   Layers3,
-  Map,
   MapPin,
-  Maximize2,
+  Moon,
   Orbit,
   Pause,
   Play,
   Plus,
-  Radio,
   RefreshCw,
-  RotateCcw,
   Satellite,
-  Settings2,
-  ShieldCheck,
-  SkipBack,
-  Square,
+  Sun,
   TriangleAlert,
   Waypoints,
   X,
-  Zap,
+  Presentation,
 } from "lucide-react";
 import type {
   Capabilities,
-  ClassName,
   LiveSnapshot,
   Replay,
   RunRecord,
@@ -54,17 +39,14 @@ import type {
 } from "./lib/types";
 import { api, download } from "./lib/api";
 import {
-  CLASS_COLORS,
   flowTimingError,
   format,
   frameAt,
-  scenarioDiff,
   utcClock,
-  queuePeak,
 } from "./lib/model";
-import { Studio, ScenarioBadge } from "./components/Studio";
+import { Studio } from "./components/Studio";
 import { Library } from "./components/Library";
-import { Sparkline, Trend } from "./components/Charts";
+import { Sparkline, DeadlineTracker, QueueBreakdown, RouteChurnCounter } from "./components/Charts";
 const Globe = lazy(() => import("./components/Globe"));
 const tabs: { id: View; label: string; icon: typeof Orbit }[] = [
   { id: "mission", label: "Mission control", icon: Orbit },
@@ -125,16 +107,31 @@ function App() {
     [playing, setPlaying] = useState(
       () => !matchMedia("(prefers-reduced-motion: reduce)").matches,
     ),
-    [speed, setSpeed] = useState(0.25),
     [selected, setSelected] = useState<number | null>(null),
+    [speed, setSpeed] = useState(0.25),
     [flow, setFlow] = useState(1),
-    [links, setLinks] = useState(true),
-    [orbits, setOrbits] = useState(true),
-    [rotate, setRotate] = useState(true),
-    [flat, setFlat] = useState(false),
-    [reset, setReset] = useState(0),
+    [links] = useState(true),
+    [orbits] = useState(true),
+    [rotate] = useState(true),
+    [flat] = useState(false),
+    [focusPath, setFocusPath] = useState(false),
+    [reset] = useState(0),
     [presentation, setPresentation] = useState(false),
-    [placing, setPlacing] = useState(false);
+    [placing, setPlacing] = useState(false),
+    [theme, setTheme] = useState<"light" | "dark">(() => {
+      try {
+        return (localStorage.getItem("apogee-theme") as "light" | "dark") || "light";
+      } catch {
+        return "light";
+      }
+    });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("apogee-theme", theme);
+    } catch {}
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
   const [cap, setCap] = useState<Capabilities>(),
     [online, setOnline] = useState(false),
     [records, setRecords] = useState<RunRecord[]>([]),
@@ -151,16 +148,10 @@ function App() {
     [followLive, setFollowLive] = useState(true),
     [compared, setCompared] = useState<string[]>([]),
     [comparison, setComparison] = useState<Replay>(),
-    [compareClock, setCompareClock] = useState<"absolute" | "relative">(
-      "relative",
-    ),
-    [sidebar, setSidebar] = useState(false),
-    [inspector, setInspector] = useState<"telemetry" | "selection">(
-      "telemetry",
-    ),
     [bootError, setBootError] = useState(""),
-    [baseline, setBaseline] = useState<Replay>();
-  const [bookmarks, setBookmarks] = useState<
+    [baseline, setBaseline] = useState<Replay>(),
+    [demoStep, setDemoStep] = useState<number | null>(null);
+  const [bookmarks] = useState<
     Record<string, import("./lib/types").RunEvent[]>
   >(() => {
     try {
@@ -184,6 +175,14 @@ function App() {
       /* Browser storage may be disabled. */
     }
   }, [bookmarks]);
+  useEffect(() => {
+    try {
+      localStorage.setItem("apogee-theme", theme);
+    } catch {
+      /* Browser storage may be disabled. */
+    }
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
   const stream = useRef<EventSource | null>(null),
     previewGeneration = useRef(0),
     previewAbort = useRef<AbortController | null>(null),
@@ -289,8 +288,7 @@ function App() {
         setLaunchOpen(false);
         setPresentation(false);
         setPlacing(false);
-        setSidebar(false);
-        return;
+                return;
       }
       if (e.key === "Tab") {
         const modal = document.querySelector<HTMLElement>("[role=dialog]");
@@ -321,8 +319,7 @@ function App() {
         setLaunchOpen(false);
         setPresentation(false);
         setPlacing(false);
-        setSidebar(false);
-      }
+              }
       if (e.key === "ArrowRight" && !(live && !terminal.has(live.status)))
         setTime((t) => Math.min(run?.duration_s ?? 0, t + 0.1));
       if (e.key === "ArrowLeft" && !(live && !terminal.has(live.status)))
@@ -369,8 +366,7 @@ function App() {
       setSelected(null);
       setFlow(next.scenario.flows[0]?.flow_id ?? 1);
       setView("mission");
-      setSidebar(false);
-    } catch (e) {
+          } catch (e) {
       notify(String(e));
     } finally {
       setBusy(false);
@@ -518,20 +514,6 @@ function App() {
       setBusy(false);
     }
   }
-  async function command(c: string) {
-    if (!live) return;
-    try {
-      const record = await api.command(live.id, c);
-      setLive(record);
-      notify(
-        c === "cancel"
-          ? "Cancellation requested."
-          : `${c === "pause" ? "Pause" : "Resume"} requested; waiting for the engine boundary.`,
-      );
-    } catch (e) {
-      notify(String(e));
-    }
-  }
   async function generatePreview() {
     if (!draft) return;
     if (!online) {
@@ -623,11 +605,18 @@ function App() {
     Boolean(live && !terminal.has(live.status)),
   );
   const current = frameAt(detailedRun, time),
-    metrics = current?.metrics,
     activeLive = Boolean(live && !terminal.has(live.status)),
     nodes = run?.nodes ?? [],
-    node = selected === null ? undefined : nodes[selected],
     policies = cap?.policies ?? fallbackPolicies;
+  const policyLabel =
+    policies.find((p) => p.id === run?.policy)?.label ??
+    run?.policy?.replaceAll("_", " ") ??
+    "—";
+  const metrics = current?.metrics ?? run?.frames.at(-1)?.metrics ?? null;
+  const delivered = metrics?.delivered;
+  const dropped = metrics?.dropped;
+  const inFlight = metrics?.in_flight;
+  const generated = metrics?.generated;
   const demoRecord: RunRecord | undefined = demo.current
     ? {
         id: demo.current.id,
@@ -658,35 +647,72 @@ function App() {
         : []),
       ...records,
     ],
-    selectedFlow = current?.routes.find((r) => r.id === flow),
+    
     elapsed = run
       ? utcClock(run.scenario.epoch, (run.scenario.orbital_start_s ?? 0) + time)
       : "00:00:00.000";
-  const timelineEvents = [
-    ...(run?.events ?? []),
-    ...(run ? (bookmarks[run.id] ?? []) : []),
-  ].sort((a, b) => a.time_s - b.time_s);
-  const status = activeLive
-    ? live?.status === "paused"
-      ? "ENGINE PAUSED"
-      : followLive
-        ? "LIVE SIMULATION"
-        : "VIEW PAUSED"
-    : run?.status === "preview"
-      ? "ORBITAL PREVIEW"
-      : run?.status === "completed"
-        ? "SAVED REPLAY"
-        : (run?.status?.toUpperCase() ?? "CONNECTING");
-  const comparisonTime =
-      comparison && run
-        ? compareClock === "relative"
-          ? (time / run.duration_s) * comparison.duration_s
-          : Math.min(time, comparison.duration_s)
-        : 0,
-    detailedComparison = useReplayWindow(comparison, comparisonTime, false),
-    comparisonFrame = frameAt(detailedComparison, comparisonTime);
-  const differences =
-    run && comparison ? scenarioDiff(run.scenario, comparison.scenario) : [];
+  // ── Mentor demo walkthrough ──────────────────────────────────────────────
+  const DEMO_STAGES = [
+    {
+      label: "1 / 5 · Constellation Studio",
+      cue: "0:00 – 1:00",
+      heading: "Welcome to APOGEE",
+      body: "APOGEE models a 200-satellite Walker-delta LEO constellation with real SGP4 propagation and packet-level QoS routing. Use Constellation Studio (left sidebar) to inspect the orbital parameters, ground stations and traffic flows before running any simulation.",
+      action: () => { setView("studio"); },
+      actionLabel: "Open Studio",
+    },
+    {
+      label: "2 / 5 · Conventional routing",
+      cue: "1:00 – 2:00",
+      heading: "Baseline: propagation Dijkstra",
+      body: "This is the recorded baseline run using propagation-only Dijkstra routing. Seek to t ≈ 85 s to watch a link drop trigger a reactive reroute — notice the brief delivery dip as the new path is installed.",
+      action: () => {
+        openRun("demo-baseline").then(() => {
+          setTime(85);
+          setPlaying(false);
+          setView("mission");
+        });
+      },
+      actionLabel: "Load baseline & seek t=85 s",
+    },
+    {
+      label: "3 / 5 · Predictive routing",
+      cue: "2:00 – 3:30",
+      heading: "APOGEE predictive controller",
+      body: "The predictive run uses link-lifetime forecasting + queue-pressure EWMA to trigger a proactive handover ~75–80 s before the same link drop. Seek to t ≈ 76 s to compare: delivery stays above 90 % through the transition.",
+      action: () => {
+        openRun("demo-handover").then(() => {
+          setTime(76);
+          setPlaying(false);
+          setView("mission");
+        });
+      },
+      actionLabel: "Load demo & seek t=76 s",
+    },
+    {
+      label: "4 / 5 · Side-by-side comparison",
+      cue: "3:30 – 4:30",
+      heading: "Compare view",
+      body: "The Compare view plays both runs in sync so you can see the delivery ratio, queue pressure and route-churn delta side by side. The predictive controller fires its handover ~10–15 s earlier, trading a small extra route change for sustained throughput.",
+      action: () => {
+        setCompared(["demo-handover", "demo-baseline"]);
+        openRun("demo-handover").then(() => setView("compare"));
+      },
+      actionLabel: "Open compare view",
+    },
+    {
+      label: "5 / 5 · Honest limitations",
+      cue: "4:30 – 5:00",
+      heading: "Calibration & caveats",
+      body: "• Queue-forecast EWMA error is worse than persistence under bursts/overload.\n• The 50 ms Control deadline is mostly infeasible at the stress link rate (10 Mbps ISL, 2 Mbps ground are design assumptions).\n• All gains are workload-dependent — do not generalise without recalibration on measured LENS data.",
+      action: () => { setDemoStep(null); },
+      actionLabel: "Close walkthrough",
+    },
+  ] as const;
+
+  type DemoStage = (typeof DEMO_STAGES)[number];
+  function runDemoStage(s: DemoStage) { s.action(); }
+
   if (bootError)
     return (
       <div className="boot-error">
@@ -707,155 +733,127 @@ function App() {
         <span>Establishing an orbital perspective</span>
       </div>
     );
+  const rotateEarth =
+    rotate && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const globeFallback = (
+    <div className="globe-loading">
+      <Orbit size={35} className="spin" />
+      <span>Rendering the Earth</span>
+    </div>
+  );
   const globe = (
-    <Suspense
-      fallback={
-        <div className="globe-loading">
-          <Orbit size={35} className="spin" />
-          <span>Rendering the Earth</span>
-        </div>
-      }
-    >
+    <Suspense fallback={globeFallback}>
       <Globe
         run={detailedRun ?? run}
         time={time}
         selected={selected}
         onSelect={(id) => {
           setSelected(id);
-          setInspector("selection");
         }}
         flow={flow}
         links={links}
         orbits={orbits}
-        rotate={
-          rotate && !matchMedia("(prefers-reduced-motion: reduce)").matches
-        }
+        rotate={rotateEarth}
         presentation={presentation}
         placeStation={placing ? place : undefined}
         flat={flat}
         reset={reset}
+        focusPath={focusPath}
       />
     </Suspense>
   );
+  const studioTime =
+    run.frames.find((frame) => frame.positions.length)?.time_s ?? 0;
+  const studioGlobe = (
+    <Suspense fallback={globeFallback}>
+      <Globe
+        run={run}
+        time={studioTime}
+        selected={null}
+        onSelect={() => {}}
+        flow={-1}
+        links={false}
+        orbits={orbits}
+        rotate={rotateEarth}
+        presentation={false}
+        placeStation={placing ? place : undefined}
+        flat={flat}
+        reset={reset}
+        focusPath={false}
+        design
+      />
+    </Suspense>
+  );
+  const classSuccess = (
+    key: "CONTROL" | "REALTIME" | "BULK",
+  ): number | null => {
+    const data = metrics?.classes?.[key];
+    if (!data) return null;
+    const ratio =
+      data.deadline_success ??
+      (data.generated > 0 ? data.delivered / data.generated : null);
+    return ratio == null ? null : Math.min(100, Math.max(0, ratio * 100));
+  };
+  const classPercent = (key: "CONTROL" | "REALTIME" | "BULK") => {
+    const value = classSuccess(key);
+    return value != null ? `${value.toFixed(1)}%` : "—";
+  };
   return (
-    <div className={`app ${presentation ? "presentation" : ""}`}>
-      <a className="skip-link" href="#main">
-        Skip to mission workspace
-      </a>
-      <header className="topbar">
-        <button
-          className="brand"
+    <div className={`app ${theme === "light" ? "light-theme" : ""} ${presentation ? "presentation" : ""}`}>
+      <header className="app-header">
+        <div
+          className="logo"
           onClick={() => setView("mission")}
           aria-label="Apogee mission home"
         >
-          <img src="/assets/mark.svg" alt="" />
-          <span>
-            APOGEE<small>ORBITAL NETWORK LAB</small>
-          </span>
-        </button>
-        <div className="topbar-center">
-          <span className="connection-status">
-            <i className={online ? "connected" : ""} />
-            {online ? "LOCAL SYSTEM ONLINE" : "OFFLINE REPLAY"}
-          </span>
-          <span className="top-divider" />
-          <span className="epoch-clock">
-            {elapsed}
-            <small>UTC</small>
-          </span>
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <ellipse cx="16" cy="16" rx="14" ry="6" transform="rotate(-28 16 16)" />
+            <circle cx="16" cy="16" r="5" fill="var(--acc2)" />
+            <circle cx="26" cy="9" r="1.8" fill="#b8660b" stroke="none" />
+          </svg>
+          <div>
+            APOGEE<small>Orbital network lab</small>
+          </div>
         </div>
-        <div className="topbar-actions">
+        <nav id="nav">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              className={view === t.id ? "on" : ""}
+              onClick={() => setView(t.id)}
+            >
+              {t.label}
+              {t.id === "library" && library.length > 0 && (
+                <span className="nav-badge">{library.length}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="hd-r">
+          <span>
+            <i className={`dot ${online ? "connected" : ""}`} />
+            {online ? "Local system online" : "Offline replay"}
+          </span>
+          <span className="t">{elapsed} UTC</span>
           <button
-            className="icon-button"
-            title="Presentation mode"
-            aria-label="Toggle presentation mode"
-            onClick={presentationMode}
+            className="tg"
+            title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+            aria-label="Toggle color theme"
+            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
           >
-            <Expand size={17} />
+            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
           </button>
-          <span className="user-avatar">H</span>
-          <button className="primary-button launch-header" onClick={openLaunch}>
-            <Plus size={15} />
+          <span className="user-avatar" title="Ayush Ranjan">
+            A
+          </span>
+          <button className="btn pri" onClick={openLaunch}>
+            <Plus size={14} />
             New simulation
           </button>
         </div>
       </header>
-      <aside className={`sidebar ${sidebar ? "open" : ""}`}>
-        <div className="sidebar-group-label">WORKSPACE</div>
-        <nav>
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              aria-label={t.label}
-              className={view === t.id ? "active" : ""}
-              onClick={() => {
-                setView(t.id);
-                setSidebar(false);
-              }}
-              title={t.label}
-            >
-              <t.icon size={19} />
-              <span>{t.label}</span>
-              {t.id === "library" && <small>{library.length}</small>}
-              {view === t.id && <i />}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-mission">
-          <span className="eyebrow">CURRENT MISSION</span>
-          <span
-            className={`status-chip ${activeLive ? "running" : "completed"}`}
-          >
-            <i />
-            {activeLive ? "In progress" : "Recorded simulation"}
-          </span>
-          <h4>{run.name}</h4>
-          <p>
-            {nodes.filter((n) => n.kind === "satellite").length} satellites ·{" "}
-            {run.scenario.constellation?.n_planes ?? 0} planes
-          </p>
-          <button onClick={() => setView("mission")}>
-            Open mission
-            <ArrowUpRight size={13} />
-          </button>
-        </div>
-        <div className="sidebar-bottom">
-          <button
-            onClick={() => {
-              setView("studio");
-              setSidebar(false);
-            }}
-          >
-            <Settings2 size={17} />
-            Mission settings
-          </button>
-          <div>
-            <ShieldCheck size={14} />
-            <span>
-              LOCAL & REPRODUCIBLE<small>ns-3.44 · SGP4 · ECEF</small>
-            </span>
-          </div>
-        </div>
-      </aside>
-      <main id="main" className={`main view-${view}`}>
-        <div className="workspace-top">
-          <div className="breadcrumbs">
-            <button
-              className="mobile-menu icon-button"
-              onClick={() => setSidebar((v) => !v)}
-              aria-label="Open navigation"
-            >
-              <Layers3 size={17} />
-            </button>
-            <span>WORKSPACE</span>
-            <ChevronRight size={11} />
-            <b>{tabs.find((t) => t.id === view)?.label}</b>
-          </div>
-          <span className="system-note">
-            <span className="tiny-dot" />
-            Science in every orbit.
-          </span>
-        </div>
+
+      <main id="main" className="main">
         {view === "library" ? (
           <Library
             runs={library}
@@ -871,1095 +869,683 @@ function App() {
             notify={notify}
           />
         ) : view === "policies" ? (
-          <section className="workspace-panel policy-page">
-            <div className="page-heading">
+          <section className="view">
+            <div className="title-row">
               <div>
-                <span className="eyebrow">THE INTELLIGENCE LAYER</span>
                 <h1>One network. Different decisions.</h1>
-                <p>
+                <p className="sub">
                   Inspect the implemented routing policies. Future learned
                   controllers use the same capability contract.
                 </p>
               </div>
-              <span className="outline-badge">6 ENGINEERED BASELINES</span>
-            </div>
-            <div className="policies-grid">
-              {policies.map((p, i) => (
-                <button
-                  key={p.id}
-                  className={`policy-card ${policy === p.id ? "selected" : ""}`}
-                  onClick={() => {
-                    setPolicy(p.id);
-                    notify(`${p.label} selected for the next simulation`);
-                  }}
-                >
-                  <span className="policy-card-number">0{i + 1}</span>
-                  <Waypoints size={27} />
-                  <h3>{p.label}</h3>
-                  <p>
-                    {(
-                      {
-                        propagation:
-                          "Shortest paths weighted by current propagation delay.",
-                        congestion:
-                          "Balances propagation and observed directed queue pressure.",
-                        qos_current:
-                          "Current-state decisions with class-aware service safeguards.",
-                        lifetime:
-                          "Looks ahead to links approaching their usable lifetime.",
-                        queue_forecast:
-                          "Forecasts queue growth from recent arrival and service trends.",
-                        predictive:
-                          "Combines orbital forecasts, queue estimates and QoS safeguards.",
-                      } as Record<string, string>
-                    )[p.id] ??
-                      "Checkpoint-backed policy. Validate observation and action compatibility before launch."}
-                  </p>
-                  <span>
-                    {policy === p.id ? (
-                      <>
-                        <Check size={13} />
-                        Selected
-                      </>
-                    ) : (
-                      <>
-                        {p.kind === "learned"
-                          ? "Learned policy"
-                          : "Heuristic policy"}
-                        <ArrowUpRight size={14} />
-                      </>
-                    )}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="future-panel">
-              <div className="future-icon">
-                <Bot size={28} />
-              </div>
-              <div>
-                <span className="eyebrow">PHASE 5 · PLANNED</span>
-                <h2>A place for learned intelligence.</h2>
-                <p>
-                  PPO training and checkpoint inference are deferred until
-                  dashboard acceptance. The policy registry reserves versioned
-                  observations, actions and checkpoint compatibility; no trained
-                  model is active.
-                </p>
-              </div>
-              <span className="outline-badge">
-                COMING AFTER DASHBOARD ACCEPTANCE
+              <span className="badge">
+                {policies.length} engineered baseline
+                {policies.length === 1 ? "" : "s"}
               </span>
             </div>
-          </section>
-        ) : (
-          <>
-            <div className="mission-heading">
-              <div>
-                <div className="mission-kicker">
-                  <span className="eyebrow">
-                    {view === "studio"
-                      ? "DESIGN YOUR NETWORK"
-                      : view === "compare"
-                        ? "EVIDENCE, SIDE BY SIDE"
-                        : "A CONNECTED WORLD. A CLEARER VIEW."}
-                  </span>
-                  <span className={`mode-badge ${activeLive ? "live" : ""}`}>
-                    <i />
-                    {status}
-                  </span>
-                </div>
-                <h1>
-                  {view === "studio"
-                    ? "Constellation studio"
-                    : view === "compare"
-                      ? "Compare missions"
-                      : "Mission control"}
-                  <span className="heading-period">.</span>
-                </h1>
-                <p>
-                  {view === "studio"
-                    ? "Shape an orbital network, then see it come to life."
-                    : view === "compare"
-                      ? "Compare the conditions before comparing the outcomes."
-                      : run.name}{" "}
-                  {view === "mission" && (
-                    <>
-                      <span className="text-divider">/</span>
-                      {policies.find((p) => p.id === run.policy)?.label ??
-                        run.policy?.replaceAll("_", " ")}
-                    </>
-                  )}
-                </p>
-              </div>
-              <div className="mission-heading-right">
-                {view === "mission" && (
-                  <>
-                    <div>
-                      <span className="eyebrow">SIMULATION TIME</span>
-                      <strong>
-                        {time.toFixed(2)}
-                        <small> / {run.duration_s.toFixed(1)} s</small>
-                      </strong>
-                    </div>
-                    {activeLive && (
-                      <div className="wall-time">
-                        <span className="eyebrow">ELAPSED WALL TIME</span>
-                        <strong>
-                          {(live?.wall_seconds ?? 0).toFixed(1)}
-                          <small> s · {live?.status}</small>
-                        </strong>
-                      </div>
-                    )}
-                    <button
-                      className="secondary-button"
-                      onClick={() =>
-                        run.id.startsWith("demo-") || run.status === "preview"
-                          ? download(run, `apogee-${run.id.slice(0, 10)}.json`)
-                          : (() => {
-                              const a = document.createElement("a");
-                              a.href = `/api/v1/runs/${run.id}/export`;
-                              a.download = "";
-                              a.click();
-                            })()
-                      }
-                    >
-                      <ArrowDownToLine size={14} />
-                      Export run
-                    </button>
-                  </>
-                )}
-                {view === "studio" && (
-                  <button className="primary-button" onClick={openLaunch}>
-                    <Play size={14} />
-                    Launch simulation
+            <div className="pol">
+              {policies.map((p) => {
+                const isSelected = policy === p.id;
+                const desc =
+                  (
+                    {
+                      propagation:
+                        "Shortest paths weighted by current propagation delay.",
+                      congestion:
+                        "Balances propagation and observed directed queue pressure.",
+                      qos_current:
+                        "Current-state decisions with class-aware service safeguards.",
+                      lifetime:
+                        "Looks ahead to links approaching their usable lifetime.",
+                      queue_forecast:
+                        "Forecasts queue growth from recent arrival and service trends.",
+                      predictive:
+                        "Combines orbital forecasts, queue estimates and QoS safeguards.",
+                    } as Record<string, string>
+                  )[p.id] ?? "Deterministic routing policy implementation.";
+                return (
+                  <button
+                    key={p.id}
+                    className={`pc ${isSelected ? "sel" : ""}`}
+                    onClick={() => {
+                      setPolicy(p.id);
+                      notify(`${p.label} selected`);
+                    }}
+                  >
+                    <h3>{p.label}</h3>
+                    <p>{desc}</p>
+                    <small>
+                      {isSelected
+                        ? "✓ Selected"
+                        : p.kind === "learned"
+                          ? "Learned policy"
+                          : "Heuristic policy"}
+                    </small>
                   </button>
-                )}
-              </div>
+                );
+              })}
             </div>
-            {view === "compare" && (
-              <div className="comparison-picker">
-                <label>
-                  MISSION A
-                  <select
-                    value={run.id}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      openRun(id).then(() => setView("compare"));
-                      if (compared.length !== 2)
-                        setCompared([
-                          id,
-                          library.find((r) => r.id !== id)?.id ?? id,
-                        ]);
-                    }}
-                  >
-                    {library.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <GitCompareArrows size={18} />
-                <label>
-                  MISSION B
-                  <select
-                    value={comparison?.id ?? ""}
-                    onChange={(e) => {
-                      setCompared([run.id, e.target.value]);
-                      loadReplay(e.target.value)
-                        .then(setComparison)
-                        .catch((e) => notify(String(e)));
-                    }}
-                  >
-                    <option value="" disabled>
-                      Choose a recorded mission
-                    </option>
-                    {library
-                      .filter((r) => r.id !== run.id)
-                      .map((r) => (
+            <div className="later">
+              <b>A place for learned intelligence.</b>
+              Training and checkpoint inference are deferred until dashboard
+              acceptance. The policy registry reserves versioned observations,
+              actions and checkpoint compatibility. No trained model is active.
+            </div>
+          </section>
+        ) : view === "compare" ? (
+          (() => {
+            const missionA = run;
+            const secondId =
+              compared.find((id) => id !== run.id) ??
+              (library.find((r) => r.id !== run.id)?.id ?? run.id);
+            const missionB =
+              comparison && comparison.id === secondId
+                ? comparison
+                : (library.find((r) => r.id === secondId) ?? run);
+            const metA = missionA.frames.at(-1)?.metrics ?? current?.metrics;
+            const metB = "frames" in (missionB ?? {}) ? (missionB as Replay).frames.at(-1)?.metrics : (missionB as RunRecord)?.metrics;
+            const delA =
+              metA?.delivery_ratio != null ? metA.delivery_ratio * 100 : null;
+            const delB =
+              metB?.delivery_ratio != null ? metB.delivery_ratio * 100 : null;
+            const latA =
+              metA?.delay_p95_s != null ? metA.delay_p95_s * 1000 : null;
+            const latB =
+              metB?.delay_p95_s != null ? metB.delay_p95_s * 1000 : null;
+            const gpA =
+              metA?.goodput_bps != null ? metA.goodput_bps / 1e6 : null;
+            const gpB =
+              metB?.goodput_bps != null ? metB.goodput_bps / 1e6 : null;
+            const latScale = Math.max(1, latA ?? 0, latB ?? 0);
+            const gpScale = Math.max(1, gpA ?? 0, gpB ?? 0);
+            const diffDel =
+              delA != null && delB != null ? delA - delB : null;
+            const diffLat =
+              latA != null && latB != null ? latA - latB : null;
+            const diffGp =
+              gpA != null && gpB != null ? gpA - gpB : null;
+
+            return (
+              <section className="view">
+                <div className="title-row">
+                  <div>
+                    <h1>Compare missions</h1>
+                    <p className="sub">
+                      Compare the conditions before comparing the outcomes.
+                    </p>
+                  </div>
+                </div>
+                <div
+                  className="card panel"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "14px",
+                    padding: "16px 20px",
+                  }}
+                >
+                  <label>
+                    Mission A
+                    <select
+                      className="sel"
+                      value={missionA.id}
+                      onChange={(e) => {
+                        openRun(e.target.value);
+                        setCompared([e.target.value, secondId]);
+                      }}
+                    >
+                      {library.map((r) => (
                         <option key={r.id} value={r.id}>
                           {r.name}
                         </option>
                       ))}
-                  </select>
-                </label>
-                <label>
-                  ALIGNMENT
-                  <select
-                    value={compareClock}
-                    onChange={(e) =>
-                      setCompareClock(e.target.value as "relative" | "absolute")
-                    }
-                  >
-                    <option value="relative">Relative episode time</option>
-                    <option value="absolute">Simulation seconds</option>
-                  </select>
-                </label>
-                {comparison && (
-                  <span
-                    className={`match-badge ${differences.length ? "warning" : ""}`}
-                  >
-                    {differences.length ? (
-                      <>
-                        <TriangleAlert size={14} />
-                        Different conditions
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck size={14} />
-                        Matched scenario
-                      </>
-                    )}
-                  </span>
-                )}
-              </div>
-            )}
-            <div
-              className={`mission-layout ${view === "studio" ? "with-studio" : ""} ${view === "compare" && comparison ? "with-comparison" : ""}`}
-            >
-              {view === "studio" && (
-                <div className="studio-panel">
-                  <Studio
-                    scenario={draft}
-                    onChange={(c) => {
-                      setDraft(c);
-                      previewGeneration.current++;
-                      previewAbort.current?.abort();
-                    }}
-                    presets={presets}
-                    onPreset={(c) => {
-                      setDraft(c);
-                      setName(
-                        "Aurora · " +
-                          (presets.find(
-                            (p) =>
-                              JSON.stringify(p.scenario) === JSON.stringify(c),
-                          )?.name ?? "Custom mission"),
-                      );
-                    }}
-                    onPreview={generatePreview}
-                    onSave={saveDesign}
-                    busy={busy}
-                    onPlace={() => setPlacing((v) => !v)}
-                    placing={placing}
-                  />
-                </div>
-              )}
-              <section
-                className="globe-panel"
-                aria-label="Orbital network visualization"
-              >
-                <div className="globe-topline">
-                  <span>
-                    <i className="status-dot" />
-                    {run.status === "preview"
-                      ? "ORBITAL DESIGN PREVIEW"
-                      : "ORBITAL NETWORK"}
-                    <small>
-                      {run.frame} · {run.units}
-                    </small>
-                  </span>
-                  <div className="globe-tools">
-                    <button
-                      className={`icon-button ${flat ? "selected" : ""}`}
-                      title="Toggle 2D map"
-                      aria-label="Toggle 2D map"
-                      onClick={() => setFlat((v) => !v)}
+                    </select>
+                  </label>
+                  <label>
+                    Mission B
+                    <select
+                      className="sel"
+                      value={secondId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setCompared([missionA.id, id]);
+                        api.replay(id).then(setComparison).catch(() => {});
+                      }}
                     >
-                      <Map size={14} />
-                    </button>
-                    <button
-                      className={`icon-button ${rotate ? "selected" : ""}`}
-                      title="Auto-orbit camera"
-                      aria-label="Toggle camera rotation"
-                      onClick={() => setRotate((v) => !v)}
+                      {library.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="cmp">
+                  <div className="card panel">
+                    <h3
+                      style={{
+                        fontSize: "16px",
+                        color: "var(--ink)",
+                        margin: "0 0 2px",
+                      }}
                     >
-                      <RotateCcw size={14} />
-                    </button>
-                    <button
-                      className="icon-button"
-                      title="Reset camera"
-                      aria-label="Reset camera"
-                      onClick={() => setReset((v) => v + 1)}
+                      {missionA.name}
+                    </h3>
+                    <span style={{ fontSize: "13px", color: "var(--mute)" }}>
+                      {policies.find((p) => p.id === missionA.policy)?.label ??
+                        missionA.policy}
+                    </span>
+                    <div className="met" style={{ marginTop: "14px" }}>
+                      <div style={{ fontSize: "13px", color: "var(--mute)" }}>
+                        Packet delivery
+                      </div>
+                      <div className="v win">
+                        {delA != null ? delA.toFixed(1) : "—"}
+                        <small>%</small>
+                      </div>
+                      <div className="bar">
+                        <u
+                          style={{
+                            width: `${delA != null ? Math.min(100, delA) : 0}%`,
+                            background: "var(--acc)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="met">
+                      <div style={{ fontSize: "13px", color: "var(--mute)" }}>
+                        Latency p95
+                      </div>
+                      <div className="v win">
+                        {latA != null ? latA.toFixed(1) : "—"} <small>ms</small>
+                      </div>
+                      <div className="bar">
+                        <u
+                          style={{
+                            width: `${latA != null ? Math.min(100, (latA / latScale) * 100) : 0}%`,
+                            background: "var(--acc)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="met">
+                      <div style={{ fontSize: "13px", color: "var(--mute)" }}>
+                        Goodput
+                      </div>
+                      <div className="v win">
+                        {gpA != null ? gpA.toFixed(2) : "—"} <small>Mbps</small>
+                      </div>
+                      <div className="bar">
+                        <u
+                          style={{
+                            width: `${gpA != null ? Math.min(100, (gpA / gpScale) * 100) : 0}%`,
+                            background: "var(--acc)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="card panel">
+                    <h3
+                      style={{
+                        fontSize: "16px",
+                        color: "var(--ink)",
+                        margin: "0 0 2px",
+                      }}
                     >
-                      <Crosshair size={15} />
-                    </button>
-                    <button
-                      className="icon-button"
-                      title="Presentation mode"
-                      aria-label="Presentation mode"
-                      onClick={presentationMode}
+                      {missionB.name}
+                    </h3>
+                    <span style={{ fontSize: "13px", color: "var(--mute)" }}>
+                      {policies.find((p) => p.id === missionB.policy)?.label ??
+                        missionB.policy}
+                    </span>
+                    <div className="met" style={{ marginTop: "14px" }}>
+                      <div style={{ fontSize: "13px", color: "var(--mute)" }}>
+                        Packet delivery
+                      </div>
+                      <div className="v">
+                        {delB != null ? delB.toFixed(1) : "—"}
+                        <small>%</small>
+                      </div>
+                      <div className="bar">
+                        <u
+                          style={{
+                            width: `${delB != null ? Math.min(100, delB) : 0}%`,
+                            background: "var(--mute)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="met">
+                      <div style={{ fontSize: "13px", color: "var(--mute)" }}>
+                        Latency p95
+                      </div>
+                      <div className="v">
+                        {latB != null ? latB.toFixed(1) : "—"} <small>ms</small>
+                      </div>
+                      <div className="bar">
+                        <u
+                          style={{
+                            width: `${latB != null ? Math.min(100, (latB / latScale) * 100) : 0}%`,
+                            background: "var(--mute)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="met">
+                      <div style={{ fontSize: "13px", color: "var(--mute)" }}>
+                        Goodput
+                      </div>
+                      <div className="v">
+                        {gpB != null ? gpB.toFixed(2) : "—"} <small>Mbps</small>
+                      </div>
+                      <div className="bar">
+                        <u
+                          style={{
+                            width: `${gpB != null ? Math.min(100, (gpB / gpScale) * 100) : 0}%`,
+                            background: "var(--mute)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="card delta">
+                  <div>
+                    <span style={{ fontSize: "13px", color: "var(--mute)" }}>
+                      Delivery
+                    </span>
+                    <b>
+                      {diffDel != null
+                        ? `${diffDel >= 0 ? "+" : ""}${diffDel.toFixed(1)} pts`
+                        : "—"}
+                    </b>
+                    <span style={{ fontSize: "12px", color: "var(--mute)" }}>
+                      A relative to B
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "13px", color: "var(--mute)" }}>
+                      Latency p95
+                    </span>
+                    <b
+                      style={{
+                        color:
+                          diffLat == null
+                            ? "var(--mute)"
+                            : diffLat <= 0
+                              ? "var(--acc)"
+                              : "var(--bad)",
+                      }}
                     >
-                      <Maximize2 size={14} />
-                    </button>
-                  </div>
-                </div>
-                <div className="globe-canvas">{globe}</div>
-                <div className="globe-coordinate">
-                  <span className="coordinate-line" />
-                  <span>
-                    EARTH / LOW ORBIT
-                    <small>
-                      {run.scenario.constellation
-                        ? `${run.scenario.constellation.altitude_km} KM ABOVE THE SURFACE`
-                        : "HISTORICAL GRAPH · ORBIT GEOMETRY UNAVAILABLE"}
-                    </small>
-                  </span>
-                </div>
-                <div className="globe-stats">
-                  <div>
-                    <Satellite size={15} />
-                    <strong>
-                      {nodes.filter((n) => n.kind === "satellite").length}
-                    </strong>
-                    <span>satellites</span>
+                      {diffLat != null
+                        ? `${diffLat >= 0 ? "+" : ""}${diffLat.toFixed(1)} ms`
+                        : "—"}
+                    </b>
+                    <span style={{ fontSize: "12px", color: "var(--mute)" }}>
+                      A relative to B
+                    </span>
                   </div>
                   <div>
-                    <Waypoints size={15} />
-                    <strong>{current.links.length}</strong>
-                    <span>active links</span>
-                  </div>
-                  <div>
-                    <MapPin size={15} />
-                    <strong>
-                      {nodes.filter((n) => n.kind === "ground").length}
-                    </strong>
-                    <span>stations</span>
-                  </div>
-                </div>
-                <div className="globe-layer-controls">
-                  <button
-                    className={links ? "active" : ""}
-                    onClick={() => setLinks((v) => !v)}
-                  >
-                    <span className="legend-line" />
-                    Network links
-                  </button>
-                  <button
-                    className={orbits ? "active" : ""}
-                    onClick={() => setOrbits((v) => !v)}
-                  >
-                    <span className="legend-line dashed" />
-                    Orbit traces
-                  </button>
-                  <span className="globe-hint">
-                    {placing
-                      ? "DOUBLE-CLICK EARTH TO PLACE A STATION"
-                      : "DRAG TO ORBIT · SCROLL TO ZOOM · SELECT A NODE"}
-                  </span>
-                </div>
-              </section>
-              {view === "compare" && comparison ? (
-                <section className="compare-inspector">
-                  <div className="section-heading">
-                    <h3>Outcome comparison</h3>
-                    <span>AT CURSOR</span>
-                  </div>
-                  <div className="comparison-names">
-                    <span>{run.name}</span>
-                    <span>{comparison.name}</span>
-                  </div>
-                  {[
-                    [
-                      "Delivery",
-                      format.percent(metrics?.delivery_ratio),
-                      format.percent(comparisonFrame?.metrics?.delivery_ratio),
-                    ],
-                    [
-                      "Delivered packets",
-                      format.number(metrics?.delivered),
-                      format.number(comparisonFrame?.metrics?.delivered),
-                    ],
-                    [
-                      "Dropped packets",
-                      format.number(metrics?.dropped),
-                      format.number(comparisonFrame?.metrics?.dropped),
-                    ],
-                    [
-                      "Latency p95",
-                      `${format.ms(metrics?.delay_p95_s)} ms`,
-                      `${format.ms(comparisonFrame?.metrics?.delay_p95_s)} ms`,
-                    ],
-                    [
-                      "Goodput",
-                      `${format.mbps(metrics?.goodput_bps)} Mbps`,
-                      `${format.mbps(comparisonFrame?.metrics?.goodput_bps)} Mbps`,
-                    ],
-                  ].map(([label, a, b]) => (
-                    <div className="comparison-metric" key={label}>
-                      <span>{label}</span>
-                      <strong>{a}</strong>
-                      <strong>{b}</strong>
-                    </div>
-                  ))}
-                  <div className="comparison-class-heading">
-                    DEADLINE SUCCESS
-                  </div>
-                  {(["CONTROL", "REALTIME"] as ClassName[]).map((c) => (
-                    <div className="comparison-metric" key={c}>
-                      <span>
-                        <i className={`class-dot ${c.toLowerCase()}`} />
-                        {c}
-                      </span>
-                      <strong>
-                        {format.percent(metrics?.classes[c].deadline_success)}
-                      </strong>
-                      <strong>
-                        {format.percent(
-                          comparisonFrame?.metrics?.classes[c].deadline_success,
-                        )}
-                      </strong>
-                    </div>
-                  ))}
-                  <div className="comparison-class-heading">
-                    FULL EPISODE · FINAL SUMMARIES
-                  </div>
-                  {[
-                    [
-                      "Bulk active-goodput fairness",
-                      run.summary?.bulk_jain_active_goodput?.toFixed(3) ?? "—",
-                      comparison.summary?.bulk_jain_active_goodput?.toFixed(
-                        3,
-                      ) ?? "—",
-                    ],
-                    [
-                      "Max backlogged Bulk gap",
-                      `${format.ms(run.summary?.bulk_service?.max_backlogged_service_gap_s)} ms`,
-                      `${format.ms(comparison.summary?.bulk_service?.max_backlogged_service_gap_s)} ms`,
-                    ],
-                  ].map(([label, a, b]) => (
-                    <div className="comparison-metric" key={label}>
-                      <span>{label}</span>
-                      <strong>{a}</strong>
-                      <strong>{b}</strong>
-                    </div>
-                  ))}
-                  {differences.length > 0 && (
-                    <div className="warning-note">
-                      <TriangleAlert size={15} />
-                      <span>
-                        These runs differ in {differences.join(", ")}. Their
-                        difference does not isolate the effect of routing
-                        policy.
-                      </span>
-                    </div>
-                  )}
-                  <button
-                    className="secondary-button full"
-                    onClick={() => {
-                      const next = comparison;
-                      setComparison(run);
-                      setRun(next);
-                      setTime(comparisonTime);
-                    }}
-                  >
-                    <GitCompareArrows size={14} />
-                    Inspect mission B on globe
-                  </button>
-                </section>
-              ) : (
-                view !== "studio" && (
-                  <aside className="telemetry-panel">
-                    <div className="inspector-tabs">
-                      <button
-                        className={inspector === "telemetry" ? "active" : ""}
-                        onClick={() => setInspector("telemetry")}
-                      >
-                        Telemetry
-                      </button>
-                      <button
-                        className={inspector === "selection" ? "active" : ""}
-                        onClick={() => setInspector("selection")}
-                      >
-                        Inspector{node && <i />}
-                      </button>
-                      <span className="pulse-dot" />
-                    </div>
-                    {inspector === "selection" ? (
-                      <>
-                        <div className="inspector-object">
-                          <span className="object-icon">
-                            {node?.kind === "ground" ? (
-                              <MapPin size={24} />
-                            ) : (
-                              <Satellite size={24} />
-                            )}
-                          </span>
-                          <span className="eyebrow">
-                            {node?.kind === "ground"
-                              ? "GROUND STATION"
-                              : "SELECTED OBJECT"}
-                          </span>
-                          <h2>{node?.name ?? "Explore the network"}</h2>
-                          <p>
-                            {node
-                              ? "Physical position at the current timeline cursor."
-                              : "Select a satellite or ground station on the globe."}
-                          </p>
-                        </div>
-                        {node && (
-                          <>
-                            <div className="detail-line">
-                              <span>Connected links</span>
-                              <b>
-                                {
-                                  current.links.filter(
-                                    (l) => l.a === node.id || l.b === node.id,
-                                  ).length
-                                }
-                              </b>
-                            </div>
-                            {["X · ECEF", "Y · ECEF", "Z · ECEF"].map(
-                              (label, i) => (
-                                <div className="detail-line" key={label}>
-                                  <span>{label}</span>
-                                  <b>
-                                    {current.positions[node.id]?.[i].toFixed(
-                                      2,
-                                    ) ?? "—"}
-                                    <small> km</small>
-                                  </b>
-                                </div>
-                              ),
-                            )}
-                            {node.coordinates && (
-                              <div className="detail-line">
-                                <span>Geographic position</span>
-                                <b>
-                                  {node.coordinates[0].toFixed(3)}°,{" "}
-                                  {node.coordinates[1].toFixed(3)}°
-                                </b>
-                              </div>
-                            )}
-                          </>
-                        )}
-                        <div className="section-heading">
-                          <h3>Route focus</h3>
-                        </div>
-                        <select
-                          className="route-select"
-                          aria-label="Highlighted traffic flow"
-                          value={flow}
-                          onChange={(e) => setFlow(Number(e.target.value))}
-                        >
-                          {run.scenario.flows.map((f) => (
-                            <option value={f.flow_id} key={f.flow_id}>
-                              Flow {f.flow_id} · {f.flow_type}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="route-chain">
-                          {selectedFlow?.path.length ? (
-                            selectedFlow.path.map((id, i) => (
-                              <button
-                                key={`${i}-${id}`}
-                                onClick={() => setSelected(id)}
-                              >
-                                <span
-                                  className={
-                                    i === 0 ||
-                                    i === selectedFlow.path.length - 1
-                                      ? "endpoint"
-                                      : ""
-                                  }
-                                />
-                                {nodes[id]?.name}
-                                {i < selectedFlow.path.length - 1 && (
-                                  <ChevronDown size={10} />
-                                )}
-                              </button>
-                            ))
-                          ) : (
-                            <p>No route recorded at this time.</p>
-                          )}
-                        </div>
-                        {current.forecast?.find((f) => f.flow_id === flow) && (
-                          <div className="controller-estimate">
-                            <div className="section-heading">
-                              <h3>Controller estimate</h3>
-                            </div>
-                            <div className="detail-line">
-                              <span>Estimated path delay</span>
-                              <b>
-                                {format.ms(
-                                  current.forecast.find(
-                                    (f) => f.flow_id === flow,
-                                  )?.estimated_delay_s,
-                                )}{" "}
-                                ms
-                              </b>
-                            </div>
-                            <div className="detail-line">
-                              <span>Deadline at risk</span>
-                              <b>
-                                {current.forecast.find(
-                                  (f) => f.flow_id === flow,
-                                )?.deadline_at_risk
-                                  ? "Yes"
-                                  : "No"}
-                              </b>
-                            </div>
-                            <div className="detail-line">
-                              <span>Heuristic fallback</span>
-                              <b>
-                                {current.forecast.find(
-                                  (f) => f.flow_id === flow,
-                                )?.fallback
-                                  ? "Applied"
-                                  : "Not applied"}
-                              </b>
-                            </div>
-                          </div>
-                        )}
-                        <div className="info-note">
-                          Highlighted lines are the installed class route. They
-                          do not animate or invent individual packet deliveries.
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="telemetry-heading">
-                          <span className="eyebrow">NETWORK VITALS</span>
-                          <span className="live-time">
-                            t + {time.toFixed(2)} s
-                          </span>
-                        </div>
-                        <div className="main-metric">
-                          <span>
-                            Packet delivery
-                            <span title="Delivered / generated UDP datagrams at the current cursor">
-                              <Info size={12} />
-                            </span>
-                          </span>
-                          <div>
-                            <strong>
-                              {format.percent(metrics?.delivery_ratio)}
-                            </strong>
-                            <Sparkline
-                              values={run.frames
-                                .slice(
-                                  0,
-                                  Math.max(
-                                    2,
-                                    run.frames.filter((f) => f.time_s <= time)
-                                      .length,
-                                  ),
-                                )
-                                .map(
-                                  (f) => (f.metrics?.delivery_ratio ?? 0) * 100,
-                                )}
-                            />
-                          </div>
-                          <small>
-                            {metrics
-                              ? `${format.number(metrics.delivered)} delivered of ${format.number(metrics.generated)} generated`
-                              : "Unavailable in geometry preview"}
-                          </small>
-                        </div>
-                        <div className="metric-pair">
-                          <div>
-                            <span>Latency p95</span>
-                            <strong>
-                              {format.ms(metrics?.delay_p95_s)}
-                              <small>ms</small>
-                            </strong>
-                          </div>
-                          <div>
-                            <span>Goodput</span>
-                            <strong>
-                              {format.mbps(metrics?.goodput_bps)}
-                              <small>Mbps</small>
-                            </strong>
-                          </div>
-                        </div>
-                        <div className="packet-accounting">
-                          <span>
-                            <i className="mint-dot" />
-                            {format.number(metrics?.delivered)}
-                            <small>delivered</small>
-                          </span>
-                          <span>
-                            <i className="amber-dot" />
-                            {format.number(metrics?.dropped)}
-                            <small>dropped</small>
-                          </span>
-                          <span>
-                            <i className="blue-dot" />
-                            {format.number(metrics?.in_flight)}
-                            <small>in flight</small>
-                          </span>
-                        </div>
-                        <div className="section-heading service-heading">
-                          <h3>Service classes</h3>
-                          <span>AT CURSOR</span>
-                        </div>
-                        {(["CONTROL", "REALTIME", "BULK"] as ClassName[]).map(
-                          (c) => {
-                            const m = metrics?.classes[c],
-                              ratio =
-                                c === "BULK"
-                                  ? m && m.generated
-                                    ? m.delivered / m.generated
-                                    : null
-                                  : m?.deadline_success;
-                            return (
-                              <div className="class-metric" key={c}>
-                                <div>
-                                  <i
-                                    className={`class-dot ${c.toLowerCase()}`}
-                                  />
-                                  <b>
-                                    {c === "REALTIME"
-                                      ? "Realtime"
-                                      : c === "CONTROL"
-                                        ? "Control"
-                                        : "Bulk"}
-                                  </b>
-                                  <span>
-                                    {c === "BULK"
-                                      ? "delivery"
-                                      : "deadline success"}
-                                  </span>
-                                  <strong>{format.percent(ratio)}</strong>
-                                </div>
-                                <div className="class-track">
-                                  <span
-                                    style={{
-                                      width: `${Math.min(100, Math.max(0, (ratio ?? 0) * 100))}%`,
-                                      background: CLASS_COLORS[c],
-                                    }}
-                                  />
-                                </div>
-                                <small>
-                                  {c === "BULK"
-                                    ? `${format.mbps(m?.goodput_bps)} Mbps · run window`
-                                    : `${Number((run.scenario.qos.targets as Record<string, { deadline_s?: number }> | undefined)?.[c]?.deadline_s ?? (c === "CONTROL" ? 0.05 : 0.1)) * 1000} ms class target · flow overrides retained`}
-                                </small>
-                              </div>
-                            );
-                          },
-                        )}
-                        <div className="queue-strip">
-                          <span>
-                            Peak directional queue{" "}
-                            <b>
-                              {format.number(queuePeak(current))}
-                              <small> packets</small>
-                            </b>
-                          </span>
-                          <span>
-                            Queued wire bytes{" "}
-                            <b>
-                              {current.queues.length &&
-                              current.queues.every((q) => q.bytes != null)
-                                ? format.number(
-                                    current.queues.reduce(
-                                      (n, q) => n + q.bytes!,
-                                      0,
-                                    ),
-                                  )
-                                : "—"}
-                            </b>
-                          </span>
-                        </div>
-                        <div className="telemetry-note">
-                          <ShieldCheck size={13} />
-                          <span>
-                            {activeLive
-                              ? "Provisional, cumulative outcomes"
-                              : "Recorded outcomes at the timeline cursor"}
-                            . Latency uses delivered packets.
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </aside>
-                )
-              )}
-            </div>
-            {view === "compare" && !comparison && (
-              <div className="comparison-empty">
-                <GitCompareArrows size={23} />
-                <span>
-                  Select a second mission above, or choose two runs from the
-                  library.
-                </span>
-                <button
-                  className="text-button"
-                  onClick={() => setView("library")}
-                >
-                  Open library
-                  <ArrowUpRight size={13} />
-                </button>
-              </div>
-            )}
-            <div className="timeline-panel">
-              <div className="playback-controls">
-                <button
-                  className="icon-button"
-                  aria-label="Return to start"
-                  disabled={activeLive}
-                  onClick={() => {
-                    setTime(0);
-                    setPlaying(false);
-                    setFollowLive(false);
-                  }}
-                >
-                  <SkipBack size={16} />
-                </button>
-                <button
-                  className="playback-main"
-                  aria-label={
-                    activeLive
-                      ? followLive
-                        ? "Pause view"
-                        : "Catch up to live"
-                      : playing
-                        ? "Pause playback"
-                        : "Play playback"
-                  }
-                  onClick={() => {
-                    if (activeLive) {
-                      setFollowLive((v) => !v);
-                    } else {
-                      if (time >= run.duration_s) setTime(0);
-                      setPlaying((v) => !v);
-                    }
-                  }}
-                >
-                  {activeLive ? (
-                    followLive ? (
-                      <Pause size={15} />
-                    ) : (
-                      <Play size={15} />
-                    )
-                  ) : playing ? (
-                    <Pause size={15} />
-                  ) : (
-                    <Play size={15} />
-                  )}
-                </button>
-                <button
-                  className="icon-button"
-                  aria-label="Bookmark current time"
-                  title="Bookmark current time"
-                  disabled={activeLive || run.status === "preview"}
-                  onClick={() => {
-                    setBookmarks((previous) => ({
-                      ...previous,
-                      [run.id]: [
-                        ...(previous[run.id] ?? []),
-                        {
-                          time_s: time,
-                          kind: "bookmark",
-                          title: "Saved bookmark",
-                          detail: `${run.name} at ${time.toFixed(2)} seconds`,
-                        },
-                      ],
-                    }));
-                    notify("Bookmark saved in this browser.");
-                  }}
-                >
-                  <BookmarkPlus size={15} />
-                </button>
-                <select
-                  aria-label="Playback speed"
-                  value={speed}
-                  onChange={(e) => setSpeed(Number(e.target.value))}
-                  disabled={activeLive && followLive}
-                >
-                  {[0.1, 0.25, 0.5, 1, 2, 4].map((s) => (
-                    <option key={s} value={s}>
-                      {s}×
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="timeline-track">
-                <div className="timeline-labels">
-                  <span>
-                    {activeLive ? "SIMULATION PROGRESS" : "MISSION TIMELINE"}
-                  </span>
-                  <div>
-                    <i className="event-marker" />
-                    Topology events
-                    <span>
-                      {time.toFixed(2)} / {run.duration_s.toFixed(2)} s
+                    <span style={{ fontSize: "13px", color: "var(--mute)" }}>
+                      Goodput
+                    </span>
+                    <b>
+                      {diffGp != null
+                        ? `${diffGp >= 0 ? "+" : ""}${diffGp.toFixed(2)} Mbps`
+                        : "—"}
+                    </b>
+                    <span style={{ fontSize: "12px", color: "var(--mute)" }}>
+                      A relative to B
                     </span>
                   </div>
                 </div>
-                <div className="range-wrap">
+              </section>
+            );
+          })()
+        ) : view === "studio" ? (
+          <section className="view">
+            <div className="title-row">
+              <div>
+                <h1>Constellation studio</h1>
+                <p className="sub">
+                  Shape an orbital network, then see it come to life.
+                </p>
+              </div>
+              <button className="btn pri" onClick={openLaunch}>
+                <Play size={14} />
+                Launch simulation
+              </button>
+            </div>
+            <div className="studio">
+              <Studio
+                scenario={draft}
+                onChange={(c) => {
+                  setDraft(c);
+                  previewGeneration.current++;
+                  previewAbort.current?.abort();
+                }}
+                presets={presets}
+                onPreset={(c) => {
+                  setDraft(c);
+                  const pName =
+                    presets.find(
+                      (p) =>
+                        JSON.stringify(p.scenario) === JSON.stringify(c),
+                    )?.name ?? "Custom mission";
+                  setName(
+                    pName.startsWith("Aurora") ? pName : `Aurora · ${pName}`,
+                  );
+                }}
+                onPreview={generatePreview}
+                onSave={saveDesign}
+                busy={busy}
+                onPlace={() => setPlacing((v) => !v)}
+                placing={placing}
+              />
+              <div className="card globe-card">
+                {studioGlobe}
+                <div className="g-tag">
+                  <b>Orbital network</b>
+                  <span>Drag to orbit, scroll to zoom</span>
+                </div>
+                <div className="g-stats">
+                  <div>
+                    <b>
+                      {nodes.filter((n) => n.kind === "satellite").length}
+                    </b>
+                    <span>satellites</span>
+                  </div>
+                  <div>
+                    <b>{draft.constellation?.n_planes ?? 0}</b>
+                    <span>orbital planes</span>
+                  </div>
+                  <div>
+                    <b>{nodes.filter((n) => n.kind === "ground").length}</b>
+                    <span>stations</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <section className="view">
+            <div className="title-row">
+              <div>
+                <h1>
+                  Mission control
+                  <span className="badge">
+                    {activeLive ? "Live telemetry" : "Saved replay"}
+                  </span>
+                </h1>
+                <p className="sub">
+                  {run.name}, running on the {policyLabel} policy.
+                </p>
+              </div>
+              <button
+                className="btn"
+                onClick={() => {
+                  if (run.id.startsWith("demo-") || run.status === "preview") {
+                    download(run, `apogee-${run.id.slice(0, 10)}.json`);
+                  } else {
+                    const a = document.createElement("a");
+                    a.href = `/api/v1/runs/${run.id}/export`;
+                    a.download = "";
+                    a.click();
+                  }
+                }}
+              >
+                <ArrowDownToLine size={14} />
+                Export run
+              </button>
+            </div>
+
+            <div className="grid-m">
+              <div>
+                <div className="card globe-card">
+                  {globe}
+                  <div className="g-tag">
+                    <b>Earth, low orbit</b>
+                    <span>
+                      {(
+                        run.scenario.constellation?.altitude_km ?? 550
+                      ).toFixed(0)}{" "}
+                      km above the surface
+                    </span>
+                  </div>
+                  <div className="g-stats">
+                    <div>
+                      <b>
+                        {nodes.filter((n) => n.kind === "satellite").length}
+                      </b>
+                      <span>satellites</span>
+                    </div>
+                    <div>
+                      <b>{current?.links.length ?? 0}</b>
+                      <span>active links</span>
+                    </div>
+                    <div>
+                      <b>{nodes.filter((n) => n.kind === "ground").length}</b>
+                      <span>stations</span>
+                    </div>
+                  </div>
+                  <div className="g-ctrls">
+                    <button
+                      className={`g-btn ${focusPath ? "active" : ""}`}
+                      onClick={() => setFocusPath((v) => !v)}
+                      title="Filter to primary traffic path"
+                    >
+                      <Waypoints size={13} />
+                      {focusPath ? "All links" : "Focus path"}
+                    </button>
+                    <button
+                      className={`g-btn ${presentation ? "active" : ""}`}
+                      onClick={() => setPresentation((v) => !v)}
+                      title="Clean presentation view"
+                    >
+                      <Presentation size={13} />
+                      Demo view
+                    </button>
+                  </div>
+                </div>
+
+                <div className="card tl">
+                  <button
+                    className="play"
+                    aria-label={playing ? "Pause" : "Play"}
+                    onClick={() => {
+                      if (time >= run.duration_s) setTime(0);
+                      setPlaying((v) => !v);
+                    }}
+                  >
+                    {playing ? <Pause size={16} /> : <Play size={16} />}
+                  </button>
                   <input
-                    aria-label="Simulation timeline"
                     type="range"
                     min={0}
                     max={run.duration_s}
                     step={0.01}
-                    value={Math.min(time, run.duration_s)}
-                    disabled={activeLive}
+                    value={time}
                     onChange={(e) => {
                       setTime(Number(e.target.value));
                       setPlaying(false);
                     }}
-                    style={
-                      {
-                        "--progress": `${(time / run.duration_s) * 100}%`,
-                      } as React.CSSProperties
-                    }
+                    aria-label="Mission timeline"
                   />
-                  {timelineEvents.map((e, i) => (
-                    <button
-                      className="timeline-event"
-                      key={`${e.time_s}-${i}`}
-                      style={{ left: `${(e.time_s / run.duration_s) * 100}%` }}
-                      title={`${e.title} · ${e.time_s.toFixed(2)} s`}
-                      aria-label={`Jump to ${e.title} at ${e.time_s.toFixed(2)} seconds`}
-                      onClick={() => {
-                        if (!activeLive) {
-                          setTime(e.time_s);
-                          setPlaying(false);
-                          notify(`${e.title}: ${e.detail}`);
-                        }
-                      }}
-                    />
-                  ))}
-                </div>
-                <div className="timeline-ticks">
-                  {[0, 0.25, 0.5, 0.75, 1].map((p) => (
-                    <span key={p}>{(run.duration_s * p).toFixed(1)}s</span>
-                  ))}
+                  <output>
+                    {time.toFixed(2)} / {run.duration_s.toFixed(2)} s
+                  </output>
                 </div>
               </div>
-              <div className="timeline-source">
-                <span className={`mode-badge ${activeLive ? "live" : ""}`}>
-                  <i />
-                  {activeLive
-                    ? live?.status === "paused"
-                      ? "PAUSED"
-                      : followLive
-                        ? "LIVE"
-                        : "VIEW PAUSED"
-                    : run.status === "preview"
-                      ? "PREVIEW"
-                      : "REPLAY"}
-                </span>
-                {activeLive && (
-                  <>
-                    <button
-                      className="text-button"
-                      onClick={() =>
-                        command(live?.status === "paused" ? "resume" : "pause")
-                      }
-                    >
-                      {live?.status === "paused"
-                        ? "Resume engine"
-                        : "Pause engine"}
-                    </button>
-                    <button
-                      className="icon-button danger"
-                      aria-label="Cancel simulation"
-                      onClick={() => command("cancel")}
-                    >
-                      <Square size={13} />
-                    </button>
-                  </>
-                )}
+
+              <aside className="card tele">
+                <h3>Packet delivery</h3>
+                <div className="big">
+                  {format.percent(metrics?.delivery_ratio)}
+                </div>
+                <div
+                  style={{
+                    color: "var(--mute)",
+                    fontSize: "13px",
+                    marginBottom: "10px",
+                  }}
+                >
+                  {format.number(delivered)} delivered of{" "}
+                  {format.number(generated)} generated
+                </div>
+
+                <div className="row2">
+                  <div>
+                    <h3>Latency p95</h3>
+                    <div className="mid">
+                      {metrics?.delay_p95_s != null
+                        ? (metrics.delay_p95_s * 1000).toFixed(1)
+                        : "—"}{" "}
+                      <small>ms</small>
+                    </div>
+                  </div>
+                  <div>
+                    <h3>Goodput</h3>
+                    <div className="mid">
+                      {metrics?.goodput_bps != null
+                        ? (metrics.goodput_bps / 1e6).toFixed(2)
+                        : "—"}{" "}
+                      <small>Mbps</small>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="cnt">
+                  <div>
+                    {format.number(delivered)}
+                    <small>delivered</small>
+                  </div>
+                  <div>
+                    {format.number(dropped)}
+                    <small>dropped</small>
+                  </div>
+                  <div>
+                    {format.number(inFlight)}
+                    <small>in flight</small>
+                  </div>
+                </div>
+
+                <h3>Service classes</h3>
+                <div className="cls">
+                  <div>
+                    <div className="cls-head">
+                      <span>
+                        Control<em>deadline success</em>
+                      </span>
+                      <i>{classPercent("CONTROL")}</i>
+                    </div>
+                    <div className="bar">
+                      <u
+                        style={{ width: `${classSuccess("CONTROL") ?? 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="cls-head">
+                      <span>
+                        Realtime<em>deadline success</em>
+                      </span>
+                      <i>{classPercent("REALTIME")}</i>
+                    </div>
+                    <div className="bar">
+                      <u
+                        style={{ width: `${classSuccess("REALTIME") ?? 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="cls-head">
+                      <span>
+                        Bulk<em>delivery</em>
+                      </span>
+                      <i>{classPercent("BULK")}</i>
+                    </div>
+                    <div className="bar">
+                      <u
+                        style={{ width: `${classSuccess("BULK") ?? 0}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+
+            <div className="charts">
+              <div className="card panel">
+                <h3>Latency over time</h3>
+                <b>p95, cumulative</b>
+                <Sparkline
+                  values={run.frames.flatMap((frame) =>
+                    frame.metrics?.delay_p95_s != null
+                      ? [frame.metrics.delay_p95_s * 1000]
+                      : [],
+                  )}
+                  color="var(--acc)"
+                />
+              </div>
+              <div className="card panel">
+                <h3>Network goodput</h3>
+                <b>run-window average</b>
+                <Sparkline
+                  values={run.frames.flatMap((frame) =>
+                    frame.metrics?.goodput_bps != null
+                      ? [frame.metrics.goodput_bps / 1e6]
+                      : [],
+                  )}
+                  color="var(--acc)"
+                />
+              </div>
+              <div className="card panel">
+                <h3>Events and topology</h3>
+                <ul className="ev">
+                  {run.events?.length ? (
+                    run.events.slice(-3).map((e, i) => (
+                      <li key={i}>
+                        <span>{e.time_s.toFixed(2)} s</span>
+                        {e.title}
+                        <small>{e.detail ?? "transition"}</small>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="ev-empty">
+                      No topology transitions recorded in this run.
+                    </li>
+                  )}
+                </ul>
               </div>
             </div>
-            {view === "mission" && (
-              <div className="analytics-row">
-                <section className="chart-panel">
-                  <div className="chart-title">
-                    <div>
-                      <span className="eyebrow">DELIVERED DATAGRAMS</span>
-                      <h3>
-                        Latency over time <small>p95 · cumulative</small>
-                      </h3>
-                    </div>
-                    <Activity size={16} />
-                  </div>
-                  <Trend
-                    frames={run.frames}
-                    field="delay"
-                    color="#9ee3d5"
-                    unit="ms"
-                    cursor={time}
-                  />
-                </section>
-                <section className="chart-panel">
-                  <div className="chart-title">
-                    <div>
-                      <span className="eyebrow">APPLICATION DELIVERY</span>
-                      <h3>
-                        Network goodput <small>run-window average</small>
-                      </h3>
-                    </div>
-                    <Zap size={16} />
-                  </div>
-                  <Trend
-                    frames={run.frames}
-                    field="goodput"
-                    color="#7aa5e2"
-                    unit="Mbps"
-                    cursor={time}
-                  />
-                </section>
-                <section className="event-panel">
-                  <div className="chart-title">
-                    <div>
-                      <span className="eyebrow">MISSION LOG</span>
-                      <h3>Events & transitions</h3>
-                    </div>
-                    <Radio size={16} />
-                  </div>
-                  <div className="event-list">
-                    {run.events.length ? (
-                      run.events.slice(-4).map((e, i) => (
-                        <button
-                          key={i}
-                          className={e.time_s <= time ? "past" : ""}
-                          onClick={() => {
-                            if (!activeLive) {
-                              setTime(e.time_s);
-                              setPlaying(false);
-                            }
-                          }}
-                        >
-                          <span>{e.time_s.toFixed(2)}s</span>
-                          <i />
-                          <span>
-                            <b>{e.title}</b>
-                            <small>{e.detail}</small>
-                          </span>
-                          <ChevronRight size={12} />
-                        </button>
-                      ))
-                    ) : (
-                      <div className="quiet-event">
-                        <Check size={14} />
-                        <span>
-                          No topology transitions recorded in this view.
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </section>
+
+            <div className="extra-charts">
+              <div className="card panel">
+                <h3>QoS deadline compliance</h3>
+                <b>Service-class latency SLAs</b>
+                <DeadlineTracker metrics={metrics} scenario={run.scenario} />
               </div>
-            )}
-            <footer className="workspace-footer">
-              <div>
-                <ShieldCheck size={13} />
-                <span>{run.source}</span>
+              <div className="card panel">
+                <h3>Queue buffer occupancy</h3>
+                <b>Total satellite queue pressure</b>
+                <QueueBreakdown
+                  queues={current?.queues ?? []}
+                  links={current?.links ?? []}
+                />
               </div>
-              <span>
-                <ScenarioBadge run={run} />
-                <span className="foot-seed">SEED {run.scenario.seed}</span>
-              </span>
-            </footer>
-          </>
+              <div className="card panel">
+                <h3>Route stability</h3>
+                <b>Path changes & handover churn</b>
+                <RouteChurnCounter events={run.events ?? []} policy={policyLabel} />
+              </div>
+            </div>
+          </section>
         )}
       </main>
+
       {presentation && (
         <button
           className="exit-presentation secondary-button"
@@ -1979,22 +1565,24 @@ function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              className="modal-close icon-button"
+              className="modal-close-btn"
               aria-label="Close launch"
               onClick={() => setLaunchOpen(false)}
             >
-              <X size={18} />
+              <X size={16} />
             </button>
-            <span className="modal-symbol">
-              <Orbit size={31} />
-            </span>
-            <span className="eyebrow">A NEW ORBITAL EXPERIMENT</span>
-            <h2 id="launch-title">Ready for launch.</h2>
-            <p>
+            <div className="modal-eyebrow">
+              <Orbit size={16} style={{ color: "var(--acc)" }} />
+              <span>A NEW ORBITAL EXPERIMENT</span>
+            </div>
+            <h2 id="launch-title" style={{ margin: "4px 0 6px", fontSize: "22px", letterSpacing: "-0.02em" }}>
+              Ready for launch.
+            </h2>
+            <p className="sub" style={{ margin: "0 0 16px", fontSize: "14px" }}>
               Your configuration is frozen for this run. The Python orbital
               model and ns-3 engine produce every metric.
             </p>
-            <label className="field">
+            <label className="field-label" style={{ marginBottom: "14px" }}>
               <span>Mission name</span>
               <input
                 autoFocus
@@ -2003,9 +1591,10 @@ function App() {
                 onChange={(e) => setName(e.target.value)}
               />
             </label>
-            <label className="field">
+            <label className="field-label" style={{ marginBottom: "14px" }}>
               <span>Routing policy</span>
               <select
+                className="sel"
                 aria-label="Routing policy"
                 value={policy}
                 onChange={(e) => setPolicy(e.target.value)}
@@ -2020,7 +1609,7 @@ function App() {
               </select>
             </label>
             {policies.find((p) => p.id === policy)?.checkpoint_required && (
-              <label className="field">
+              <label className="field-label" style={{ marginBottom: "14px" }}>
                 <span>Checkpoint manifest ID</span>
                 <input
                   aria-label="Checkpoint manifest ID"
@@ -2028,31 +1617,30 @@ function App() {
                   onChange={(e) => setCheckpoint(e.target.value)}
                   placeholder="Select a compatible registered checkpoint"
                 />
-                <small>
+                <small style={{ color: "var(--mute)", fontSize: "11px", marginTop: "2px" }}>
                   Observation/action compatibility is validated by the policy
                   backend.
                 </small>
               </label>
             )}
             <div className="launch-summary">
-              <span>
-                <Satellite size={15} />
-                {draft.constellation.n_planes *
-                  draft.constellation.sats_per_plane}{" "}
-                satellites
+              <span className="launch-chip">
+                <Satellite size={14} style={{ color: "var(--acc)" }} />
+                <b>{(draft?.constellation?.n_planes ?? run.scenario.constellation?.n_planes ?? 10) *
+                  (draft?.constellation?.sats_per_plane ?? run.scenario.constellation?.sats_per_plane ?? 20)}</b> satellites
               </span>
-              <span>
-                <Clock3 size={15} />
-                {draft.duration_s} s simulated
+              <span className="launch-chip">
+                <Clock3 size={14} style={{ color: "var(--acc)" }} />
+                <b>{(draft?.duration_s ?? run.duration_s).toFixed(1)}s</b> simulated
               </span>
-              <span>
-                <MapPin size={15} />
-                {draft.ground_stations.length} stations
+              <span className="launch-chip">
+                <MapPin size={14} style={{ color: "var(--acc)" }} />
+                <b>{(draft?.ground_stations?.length ?? run.scenario.ground_stations?.length ?? 4)}</b> stations
               </span>
             </div>
             {!online && (
               <div className="warning-note">
-                <TriangleAlert size={16} />
+                <TriangleAlert size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
                 <span>
                   The local API is offline. Start the app with Docker Compose to
                   launch simulations. The bundled recorded replay remains
@@ -2060,37 +1648,41 @@ function App() {
                 </span>
               </div>
             )}
-            <button
-              className="primary-button full launch-confirm"
-              disabled={
-                busy ||
-                !online ||
-                !cap?.engine_available ||
-                Boolean(
-                  policies.find((p) => p.id === policy)?.checkpoint_required &&
-                  !checkpoint.trim(),
-                )
-              }
-              onClick={launch}
-            >
-              {busy ? (
-                <RefreshCw size={16} className="spin" />
-              ) : (
-                <Play size={16} />
-              )}
-              Launch simulation
-              <ArrowRight size={16} />
-            </button>
-            <button
-              className="text-button full"
-              onClick={() => {
-                setLaunchOpen(false);
-                setView("studio");
-              }}
-            >
-              Review constellation setup
-              <ArrowUpRight size={13} />
-            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "18px" }}>
+              <button
+                className="btn pri full"
+                style={{ justifyContent: "center", padding: "12px 18px", fontWeight: 600, fontSize: "14px" }}
+                disabled={
+                  busy ||
+                  !online ||
+                  !cap?.engine_available ||
+                  Boolean(
+                    policies.find((p) => p.id === policy)?.checkpoint_required &&
+                    !checkpoint.trim(),
+                  )
+                }
+                onClick={launch}
+              >
+                {busy ? (
+                  <RefreshCw size={16} className="spin" />
+                ) : (
+                  <Play size={16} />
+                )}
+                Launch simulation
+                <ArrowRight size={16} />
+              </button>
+              <button
+                className="btn full"
+                style={{ justifyContent: "center", fontSize: "13px", color: "var(--mute)" }}
+                onClick={() => {
+                  setLaunchOpen(false);
+                  setView("studio");
+                }}
+              >
+                Review constellation setup
+                <ArrowUpRight size={13} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2112,6 +1704,67 @@ function App() {
           </button>
         </div>
       )}
+      {/* ── Mentor demo walkthrough overlay ──────────────────────── */}
+      {demoStep !== null && (() => {
+        const stage = DEMO_STAGES[demoStep];
+        return (
+          <div className="demo-walkthrough" role="complementary" aria-label="Mentor demo guide">
+            <div className="demo-header">
+              <Presentation size={14} />
+              <span className="demo-cue-label">{stage.label}</span>
+              <button
+                className="icon-button demo-close"
+                aria-label="Close walkthrough"
+                onClick={() => setDemoStep(null)}
+              >
+                <X size={13} />
+              </button>
+            </div>
+            <div className="demo-cue">{stage.cue}</div>
+            <h3 className="demo-heading">{stage.heading}</h3>
+            <p className="demo-body">{stage.body}</p>
+            <div className="demo-actions">
+              <button
+                className="primary-button demo-action-btn"
+                onClick={() => runDemoStage(stage)}
+              >
+                {stage.actionLabel}
+                <ArrowRight size={13} />
+              </button>
+            </div>
+            <div className="demo-nav">
+              <button
+                className="secondary-button demo-prev"
+                disabled={demoStep === 0}
+                onClick={() => setDemoStep((s) => Math.max(0, (s ?? 0) - 1))}
+              >
+                ← Prev
+              </button>
+              <span className="demo-pip-row">
+                {DEMO_STAGES.map((_, i) => (
+                  <button
+                    key={i}
+                    className={`demo-pip ${i === demoStep ? "active" : ""}`}
+                    aria-label={`Stage ${i + 1}`}
+                    onClick={() => setDemoStep(i)}
+                  />
+                ))}
+              </span>
+              <button
+                className="secondary-button demo-next"
+                disabled={demoStep === DEMO_STAGES.length - 1}
+                onClick={() =>
+                  setDemoStep((s) =>
+                    Math.min(DEMO_STAGES.length - 1, (s ?? 0) + 1),
+                  )
+                }
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

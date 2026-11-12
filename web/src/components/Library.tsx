@@ -1,19 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowDownToLine,
   ArrowUpRight,
-  Check,
-  Clock3,
   Copy,
   FolderOpen,
   Search,
   Upload,
-  X,
   GitCompareArrows,
 } from "lucide-react";
 import type { Replay, RunRecord } from "../lib/types";
-import { format } from "../lib/model";
 import { api } from "../lib/api";
+
 export function Library({
   runs,
   onOpen,
@@ -35,12 +31,14 @@ export function Library({
 }) {
   const [search, setSearch] = useState(""),
     [status, setStatus] = useState("all"),
+    [filterPolicy, setFilterPolicy] = useState("all"),
     [importing, setImporting] = useState(false),
     [candidates, setCandidates] = useState<{ path: string; name: string }[]>(
       [],
     ),
     [busy, setBusy] = useState("");
   const file = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!importing) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -48,29 +46,36 @@ export function Library({
       if (e.key === "Escape") setImporting(false);
     };
     window.addEventListener("keydown", close);
-    document
-      .querySelector<HTMLButtonElement>('[aria-label="Close import"]')
-      ?.focus();
     return () => {
       window.removeEventListener("keydown", close);
       previous?.focus();
     };
   }, [importing]);
-  const filtered = runs.filter(
-    (r) =>
-      (status === "all" || r.status === status) &&
-      `${r.name} ${r.policy} ${r.id}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-  );
+
+  const policies = Array.from(new Set(runs.map((r) => r.policy)));
+
+  const filtered = runs.filter((r) => {
+    if (status !== "all" && r.status !== status) return false;
+    if (filterPolicy !== "all" && r.policy !== filterPolicy) return false;
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      r.name.toLowerCase().includes(q) ||
+      r.policy.toLowerCase().includes(q) ||
+      r.id.toLowerCase().includes(q)
+    );
+  });
+
   async function imports() {
     try {
-      setCandidates(await api.candidates());
+      const list = await api.candidates();
+      setCandidates(list);
       setImporting(true);
     } catch (e) {
       notify(String(e));
     }
   }
+
   async function importPath(path: string) {
     setBusy(path);
     try {
@@ -85,67 +90,62 @@ export function Library({
       setBusy("");
     }
   }
+
   return (
-    <div className="workspace-panel library-page">
-      <div className="page-heading">
+    <div className="view">
+      <div className="title-row">
         <div>
-          <span className="eyebrow">YOUR ORBITAL ARCHIVE</span>
           <h1>Every mission. Preserved.</h1>
-          <p>
-            Revisit the evidence, replay a handover, or put two policies side by
-            side.
+          <p className="sub">
+            Revisit the evidence, replay a handover, or put two policies side by side.
           </p>
         </div>
-        <button className="primary-button" onClick={imports}>
-          <FolderOpen size={15} />
+        <button className="btn pri" onClick={imports}>
+          <Upload size={14} />
           Import past run
         </button>
       </div>
-      <div className="library-tools">
-        <div className="search">
-          <Search size={15} />
-          <input
-            aria-label="Search runs"
-            placeholder="Search missions, policies or run IDs…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+
+      <div className="tools">
+        <input
+          aria-label="Search runs"
+          placeholder="Search missions, policies or run IDs"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          aria-label="Filter policy"
+          value={filterPolicy}
+          onChange={(e) => setFilterPolicy(e.target.value)}
+        >
+          <option value="all">All policies</option>
+          {policies.map((p) => (
+            <option key={p} value={p}>
+              {p.replaceAll("_", " ")}
+            </option>
+          ))}
+        </select>
         <select
           aria-label="Filter run status"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
-          {[
-            "all",
-            "completed",
-            "running",
-            "paused",
-            "failed",
-            "cancelled",
-            "interrupted",
-          ].map((s) => (
-            <option key={s} value={s}>
-              {s === "all" ? "All statuses" : s}
-            </option>
-          ))}
+          <option value="all">All statuses</option>
+          <option value="completed">Completed</option>
+          <option value="running">Running</option>
+          <option value="failed">Failed</option>
+          <option value="cancelled">Cancelled</option>
         </select>
         <button
-          className="secondary-button"
-          onClick={() => file.current?.click()}
-        >
-          <Upload size={14} />
-          Import bundle
-        </button>
-        <button
-          className="secondary-button"
+          className="btn"
           disabled={selected.length !== 2}
           onClick={onCompare}
         >
-          <GitCompareArrows size={15} />
+          <GitCompareArrows size={14} />
           Compare {selected.length ? `(${selected.length}/2)` : ""}
         </button>
       </div>
+
       <input
         type="file"
         hidden
@@ -163,147 +163,149 @@ export function Library({
             } catch (e) {
               notify(String(e));
             }
-          e.target.value = "";
         }}
       />
-      <div className="run-table">
-        <div className="run-table-head">
-          <span />
-          <span>MISSION / RUN ID</span>
-          <span>POLICY</span>
-          <span>DELIVERY</span>
-          <span>STATUS</span>
-          <span />
-        </div>
-        {filtered.length ? (
-          filtered.map((r, i) => (
-            <div className="run-row" key={r.id}>
-              <button
-                className={`check-button ${selected.includes(r.id) ? "checked" : ""}`}
-                aria-label={`Compare ${r.name}`}
-                aria-pressed={selected.includes(r.id)}
-                onClick={() => onToggle(r.id)}
-              >
-                {selected.includes(r.id) && <Check size={12} />}
-              </button>
-              <button className="run-title" onClick={() => onOpen(r.id)}>
-                <span className="run-icon">
-                  <Clock3 size={17} />
-                </span>
-                <span>
-                  <b>{r.name}</b>
-                  <small>
-                    {r.id.startsWith("demo-")
-                      ? "BUNDLED VERIFIED RUN"
-                      : r.id.slice(0, 12).toUpperCase()}{" "}
-                    <i /> {r.duration_s.toFixed(1)} s episode
-                  </small>
-                </span>
-              </button>
-              <span className="policy-name">
-                {r.policy.replaceAll("_", " ")}
-              </span>
-              <span className="delivery-cell">
-                {format.percent(r.metrics?.delivery_ratio)}
-                <small>{format.number(r.metrics?.delivered)} datagrams</small>
-              </span>
-              <span className={`status-chip ${r.status}`}>
-                <i />
-                {r.status}
-              </span>
-              <div className="row-actions">
-                <button
-                  className="icon-button"
-                  title="Duplicate configuration"
-                  aria-label={`Duplicate ${r.name}`}
-                  onClick={() => onDuplicate(r.id)}
+
+      <div className="card lib">
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: 44, textAlign: "center" }}></th>
+              <th>Mission</th>
+              <th>Results</th>
+              <th>Policy</th>
+              <th>Status</th>
+              <th style={{ width: 110, textAlign: "right" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length > 0 ? (
+              filtered.map((r) => (
+                <tr
+                  key={r.id}
+                  className={selected.includes(r.id) ? "selected" : ""}
                 >
-                  <Copy size={14} />
-                </button>
-                {!r.id.startsWith("demo-") && (
-                  <a
-                    className="icon-button"
-                    href={`/api/v1/runs/${r.id}/export`}
-                    download
-                    title="Export replay bundle"
-                  >
-                    <ArrowDownToLine size={14} />
-                  </a>
-                )}
-                <button
-                  className="icon-button"
-                  aria-label={`Open ${r.name}`}
-                  onClick={() => onOpen(r.id)}
-                >
-                  <ArrowUpRight size={15} />
-                </button>
-              </div>
-              <span className="row-index">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-            </div>
-          ))
-        ) : (
-          <div className="empty-state">
-            <Search size={28} />
-            <h3>No matching missions</h3>
-            <p>Try another filter or launch your first simulation.</p>
-          </div>
-        )}
+                  <td style={{ textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${r.name}`}
+                      checked={selected.includes(r.id)}
+                      onChange={() => onToggle(r.id)}
+                    />
+                  </td>
+                  <td>
+                    <b
+                      style={{ cursor: "pointer", display: "block" }}
+                      onClick={() => onOpen(r.id)}
+                    >
+                      {r.name}
+                    </b>
+                    <small style={{ color: "var(--mute)", display: "block", fontSize: "12px" }}>
+                      {r.duration_s != null
+                        ? `${r.duration_s.toFixed(1)} s run`
+                        : "Duration unavailable"}
+                    </small>
+                  </td>
+                  <td>
+                    {r.metrics?.delivery_ratio != null && (
+                      <span className="chip">
+                        {(r.metrics.delivery_ratio * 100).toFixed(0)}% delivery
+                      </span>
+                    )}
+                    {r.metrics?.delay_p95_s != null && (
+                      <span className="chip">
+                        {(r.metrics.delay_p95_s * 1000).toFixed(0)} ms p95
+                      </span>
+                    )}
+                    {r.metrics?.goodput_bps != null && (
+                      <span className="chip">
+                        {(r.metrics.goodput_bps / 1e6).toFixed(2)} Mbps
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ textTransform: "capitalize" }}>
+                    {r.policy.replaceAll("_", " ")}
+                  </td>
+                  <td>
+                    <span className="ok">{r.status}</span>
+                  </td>
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <button
+                      className="btn"
+                      style={{ padding: "4px 8px", marginRight: "4px" }}
+                      title="Duplicate"
+                      onClick={() => onDuplicate(r.id)}
+                    >
+                      <Copy size={13} />
+                    </button>
+                    <button
+                      className="btn"
+                      style={{ padding: "4px 8px" }}
+                      title="Open run"
+                      onClick={() => onOpen(r.id)}
+                    >
+                      <ArrowUpRight size={13} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={6} style={{ textAlign: "center", padding: "40px 16px", color: "var(--mute)" }}>
+                  <Search size={24} style={{ display: "block", margin: "0 auto 8px" }} />
+                  No matching missions found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
-      <div className="library-foot">
-        <span>
-          <i className="status-dot" />
-          Original run artifacts remain immutable.
-        </span>
-        <span>{filtered.length} missions in view</span>
-      </div>
+
+      <p style={{ color: "var(--mute)", fontSize: "13px", marginTop: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+        <i className="dot" style={{ background: "var(--acc)", margin: 0 }} />
+        Original run artifacts remain immutable. ({filtered.length} missions in view)
+      </p>
+
       {importing && (
         <div className="modal-backdrop" onClick={() => setImporting(false)}>
           <div
-            className="modal import-modal"
+            className="dialog-modal"
             role="dialog"
             aria-modal="true"
             aria-label="Import recorded run"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              className="modal-close icon-button"
-              onClick={() => setImporting(false)}
-              aria-label="Close import"
-            >
-              <X size={18} />
-            </button>
-            <span className="eyebrow">EXISTING SIMULATION ARTIFACTS</span>
-            <h2>Bring a mission into view.</h2>
-            <p>
-              Choose a recorded packet run from the repository. Originals stay
-              untouched. Preparing geometry can take a moment.
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <h2 style={{ margin: 0 }}>Bring a mission into view</h2>
+              <button
+                className="tg"
+                style={{ width: "32px", height: "32px", fontSize: "14px" }}
+                onClick={() => setImporting(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <p className="sub" style={{ margin: "0 0 16px" }}>
+              Choose a recorded packet run from the repository. Originals stay untouched.
             </p>
-            <div className="candidate-list">
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "300px", overflowY: "auto" }}>
               {candidates.map((c) => (
                 <button
                   key={c.path}
+                  className="btn"
+                  style={{ justifyContent: "space-between", textAlign: "left" }}
                   disabled={!!busy}
                   onClick={() => importPath(c.path)}
                 >
-                  <FolderOpen size={16} />
                   <span>
-                    {c.name}
-                    <small>{c.path}</small>
+                    <FolderOpen size={14} style={{ marginRight: "8px" }} />
+                    <b>{c.name}</b>
+                    <small style={{ display: "block", color: "var(--mute)" }}>{c.path}</small>
                   </span>
-                  <span>
-                    {busy === c.path ? (
-                      "Importing…"
-                    ) : (
-                      <ArrowUpRight size={16} />
-                    )}
-                  </span>
+                  <span>{busy === c.path ? "Importing…" : "→"}</span>
                 </button>
               ))}
-              {!candidates.length && (
-                <p>No completed packet runs found under runs/.</p>
-              )}
+              {!candidates.length && <p style={{ color: "var(--mute)" }}>No completed packet runs found under runs/.</p>}
             </div>
           </div>
         </div>
