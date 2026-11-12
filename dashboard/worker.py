@@ -2,6 +2,7 @@
 
 import csv
 import json
+import hashlib
 import sys
 import time
 from pathlib import Path
@@ -21,7 +22,9 @@ def main(directory):
     directory = Path(directory)
     job = read_json(directory / "job.json")
     config = job["scenario"]
-    frames = []
+    last_frame = None
+    last_frame_time = None
+    frame_offsets = []
     events = []
     last_links = None
     plan = geometry = metrics = source = None
@@ -31,7 +34,7 @@ def main(directory):
     )
 
     def observe(obs):
-        nonlocal plan, geometry, metrics, source, seq, last_links
+        nonlocal plan, geometry, metrics, source, seq, last_links, last_frame, last_frame_time
         if plan is None:
             plan = read_json(directory / "prepared.json")
             geometry = Geometry(config, directory / "constellation.csv")
@@ -63,10 +66,12 @@ def main(directory):
             queues=obs["queues"],
             forecast=obs.get("prediction", {}).get("decisions", []),
         )
-        if not frames or now - frames[-1]["time_s"] >= 0.099999:
-            frames.append(frame)
-            with (directory / "frames.jsonl").open("a") as file:
-                file.write(json.dumps(frame, separators=(",", ":")) + "\n")
+        if last_frame is None or now - last_frame_time >= 0.099999:
+            encoded = (json.dumps(frame, separators=(",", ":")) + "\n").encode()
+            with (directory / "frames.jsonl").open("ab") as file:
+                frame_offsets.append([now, file.tell()])
+                file.write(encoded)
+            last_frame, last_frame_time = frame, now
         seq += 1
 
         def publish(status):
@@ -101,12 +106,16 @@ def main(directory):
             source.close()
         if plan is not None:
             final = {
-                **frames[-1],
+                **last_frame,
                 "time_s": config["duration_s"],
                 "positions": geometry.positions(config["duration_s"]),
                 "metrics": metrics.at(config["duration_s"]),
             }
-            frames.append(final)
+            encoded = (json.dumps(final, separators=(",", ":")) + "\n").encode()
+            with (directory / "frames.jsonl").open("ab") as file:
+                frame_offsets.append([final["time_s"], file.tell()])
+                file.write(encoded)
+            last_frame = final
         bundle = dict(
             schema_version=1,
             id=job["id"],
@@ -116,7 +125,7 @@ def main(directory):
             scenario=config,
             nodes=metadata(config, plan["nodes"]),
             duration_s=config["duration_s"],
-            frames=frames,
+            frames=[],
             events=events,
             frame="ECEF",
             units="km",
@@ -132,6 +141,21 @@ def main(directory):
             result_hash=manifest.get("result_sha256"),
             source_hashes=manifest.get("source_sha256", {}),
         )
+        # Keep frame payloads independently addressable. The API can seek into
+        # large runs without deserializing the entire replay bundle.
+        atomic_json(directory / "replay-index.json", {"schema_version": 1, "file": "frames.jsonl", "frames": frame_offsets})
+        bundle["frames"] = []
+        bundle["frame_count"] = len(frame_offsets)
+        bundle["provenance"] = {
+            "scenario_hash": job.get("scenario_hash"),
+            "policy": job.get("policy"),
+            "checkpoint": job.get("checkpoint"),
+            "encoder_version": job.get("encoder_version"),
+            "calibration": job.get("calibration"),
+            "source_version": job.get("source_version"),
+            "manifest_sha256": hashlib.sha256((directory / "manifest.json").read_bytes()).hexdigest()
+            if (directory / "manifest.json").exists() else None,
+        }
         atomic_json(directory / "replay.json", bundle)
         atomic_json(
             directory / "ui-state.json",
@@ -139,7 +163,7 @@ def main(directory):
                 status="completed",
                 time_s=config["duration_s"],
                 sequence=seq + 1,
-                frame=frames[-1],
+                frame=last_frame,
                 wall_seconds=time.time() - started,
             ),
         )
@@ -149,7 +173,7 @@ def main(directory):
             dict(
                 status="failed",
                 error=str(exc),
-                time_s=frames[-1]["time_s"] if frames else 0,
+                time_s=last_frame["time_s"] if last_frame else 0,
                 sequence=seq + 1,
             ),
         )
