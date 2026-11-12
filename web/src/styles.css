@@ -382,6 +382,43 @@ canvas.globe,
   cursor: grabbing;
 }
 
+.no-geometry,
+.globe-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 32px;
+  text-align: center;
+  color: var(--mute);
+  z-index: 6;
+}
+
+.no-geometry p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.no-geometry span {
+  max-width: 36ch;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.globe-loading {
+  gap: 10px;
+  font-size: 13px;
+}
+
+.globe-loading svg {
+  color: var(--acc);
+}
+
 .g-tag {
   position: absolute;
   left: 18px;
